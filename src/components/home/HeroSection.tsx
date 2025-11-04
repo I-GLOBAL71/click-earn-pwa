@@ -13,20 +13,20 @@ export const HeroSection = () => {
           {/* Badge */}
           <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-2 text-sm font-medium text-primary">
             <Zap className="h-4 w-4" />
-            Nouvelle plateforme de recommandation
+            Plateforme ambassadeur exclusive
           </div>
 
           {/* Heading */}
           <h1 className="mb-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-            Gagnez en recommandant
+            Devenez ambassadeur et
             <span className="block bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              vos produits préférés
+              gagnez sur chaque recommandation
             </span>
           </h1>
 
           {/* Description */}
           <p className="mb-10 text-lg text-muted-foreground sm:text-xl">
-            Partagez vos produits favoris avec votre réseau et recevez des commissions sur chaque achat généré. 
+            Commandez à prix ambassadeur avec remises automatiques et partagez vos produits favoris pour gagner des commissions généreuses. 
             Simple, transparent et rémunérateur.
           </p>
 

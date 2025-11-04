@@ -1,7 +1,8 @@
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, Euro, MousePointerClick, ShoppingCart, Share2, Copy } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TrendingUp, Euro, MousePointerClick, ShoppingCart, Share2, Copy, Award } from "lucide-react";
 import { toast } from "sonner";
 
 const stats = [
@@ -36,10 +37,16 @@ const stats = [
 ];
 
 const recentActivities = [
-  { product: "Écouteurs Bluetooth Pro", commission: "€12.50", date: "Il y a 2h" },
-  { product: "Montre connectée Sport", commission: "€25.00", date: "Il y a 5h" },
-  { product: "Chargeur sans fil rapide", commission: "€8.30", date: "Hier" },
-  { product: "Casque audio Premium", commission: "€32.00", date: "Hier" },
+  { product: "Écouteurs Bluetooth Pro", commission: "€12.50", date: "Il y a 2h", type: "recommendation" },
+  { product: "Montre connectée Sport", commission: "€25.00", date: "Il y a 5h", type: "recommendation" },
+  { product: "Chargeur sans fil rapide", commission: "€8.30", date: "Hier", type: "recommendation" },
+  { product: "Casque audio Premium", commission: "€32.00", date: "Hier", type: "recommendation" },
+];
+
+const myOrders = [
+  { product: "Écouteurs Bluetooth Pro", savings: "€13.50", total: "€76.49", date: "Il y a 1 jour", status: "Livrée" },
+  { product: "Souris ergonomique Pro", savings: "€14.40", total: "€65.59", date: "Il y a 3 jours", status: "En transit" },
+  { product: "Webcam 4K Ultra HD", savings: "€22.50", total: "€127.49", date: "Il y a 1 semaine", status: "Livrée" },
 ];
 
 const Dashboard = () => {
@@ -57,9 +64,14 @@ const Dashboard = () => {
       <main className="container py-8">
         {/* Page Header */}
         <div className="mb-8 animate-fade-in">
-          <h1 className="mb-2 text-3xl font-bold">Tableau de bord</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="rounded-full gradient-primary p-2">
+              <Award className="h-6 w-6 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold">Tableau de bord ambassadeur</h1>
+          </div>
           <p className="text-muted-foreground">
-            Suivez vos performances et gérez vos recommandations
+            Suivez vos commandes, performances et gérez vos recommandations
           </p>
         </div>
 
@@ -88,36 +100,61 @@ const Dashboard = () => {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Recent Activity */}
+          {/* Activity Tabs */}
           <Card className="shadow-card lg:col-span-2">
             <CardHeader>
-              <CardTitle>Activité récente</CardTitle>
-              <CardDescription>Vos dernières commissions générées</CardDescription>
+              <CardTitle>Activité</CardTitle>
+              <CardDescription>Vos commandes et recommandations</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentActivities.map((activity, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between rounded-lg border border-border p-4 transition-all hover:bg-accent/50"
-                  >
-                    <div>
-                      <p className="font-medium">{activity.product}</p>
-                      <p className="text-sm text-muted-foreground">{activity.date}</p>
+              <Tabs defaultValue="recommendations" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="recommendations">Recommandations</TabsTrigger>
+                  <TabsTrigger value="orders">Mes commandes</TabsTrigger>
+                </TabsList>
+                <TabsContent value="recommendations" className="space-y-4 mt-4">
+                  {recentActivities.map((activity, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between rounded-lg border border-border p-4 transition-all hover:bg-accent/50"
+                    >
+                      <div>
+                        <p className="font-medium">{activity.product}</p>
+                        <p className="text-sm text-muted-foreground">{activity.date}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-secondary">+{activity.commission}</p>
+                        <p className="text-xs text-muted-foreground">Commission</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-secondary">{activity.commission}</p>
+                  ))}
+                </TabsContent>
+                <TabsContent value="orders" className="space-y-4 mt-4">
+                  {myOrders.map((order, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between rounded-lg border border-border p-4 transition-all hover:bg-accent/50"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium">{order.product}</p>
+                        <p className="text-sm text-muted-foreground">{order.date}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold">{order.total}</p>
+                        <p className="text-xs text-secondary">Économisé: {order.savings}</p>
+                        <p className="text-xs text-muted-foreground">{order.status}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
 
-          {/* Referral Link Card */}
+          {/* Ambassador Link Card */}
           <Card className="shadow-card">
             <CardHeader>
-              <CardTitle>Votre lien de parrainage</CardTitle>
+              <CardTitle>Votre lien ambassadeur</CardTitle>
               <CardDescription>Partagez ce lien pour gagner des commissions</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -137,9 +174,9 @@ const Dashboard = () => {
               </div>
 
               <div className="rounded-lg gradient-hero p-4">
-                <p className="text-sm font-medium mb-2">💡 Conseil</p>
+                <p className="text-sm font-medium mb-2">💡 Conseil ambassadeur</p>
                 <p className="text-sm text-muted-foreground">
-                  Partagez vos produits préférés sur les réseaux sociaux pour maximiser vos gains !
+                  Commandez à prix ambassadeur et recommandez vos produits préférés sur les réseaux sociaux pour maximiser vos gains !
                 </p>
               </div>
             </CardContent>

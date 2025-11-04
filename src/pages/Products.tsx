@@ -2,8 +2,9 @@ import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Share2, TrendingUp } from "lucide-react";
+import { Share2, TrendingUp, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 const products = [
   {
@@ -69,10 +70,16 @@ const products = [
 ];
 
 const Products = () => {
+  const navigate = useNavigate();
+
   const handleRecommend = (productName: string) => {
     toast.success(`Lien de recommandation généré pour "${productName}" !`, {
       description: "Le lien a été copié dans votre presse-papier.",
     });
+  };
+
+  const handleViewDetails = (productId: number) => {
+    navigate(`/products/${productId}`);
   };
 
   return (
@@ -135,11 +142,20 @@ const Products = () => {
                 </div>
               </CardContent>
 
-              <CardFooter>
+              <CardFooter className="flex gap-2">
+                <Button
+                  onClick={() => handleViewDetails(product.id)}
+                  variant="default"
+                  className="flex-1"
+                  size="lg"
+                >
+                  <Eye className="h-4 w-4" />
+                  Voir détails
+                </Button>
                 <Button
                   onClick={() => handleRecommend(product.name)}
                   variant="hero"
-                  className="w-full"
+                  className="flex-1"
                   size="lg"
                 >
                   <Share2 className="h-4 w-4" />
