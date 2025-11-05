@@ -1,10 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Zap } from "lucide-react";
+import { Zap, Settings } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export const Header = () => {
   const location = useLocation();
   const isHomePage = location.pathname === "/";
+  const { user, isAdmin, signOut } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -19,7 +21,7 @@ export const Header = () => {
         </Link>
 
         <nav className="flex items-center gap-4">
-          {isHomePage ? (
+          {!user ? (
             <>
               <Button variant="ghost" asChild>
                 <Link to="/auth">Connexion</Link>
@@ -30,11 +32,22 @@ export const Header = () => {
             </>
           ) : (
             <>
+              {isAdmin && (
+                <Button variant="ghost" asChild>
+                  <Link to="/admin/dashboard">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Admin
+                  </Link>
+                </Button>
+              )}
               <Button variant="ghost" asChild>
                 <Link to="/dashboard">Tableau de bord</Link>
               </Button>
               <Button variant="ghost" asChild>
                 <Link to="/products">Produits</Link>
+              </Button>
+              <Button variant="outline" onClick={signOut}>
+                Déconnexion
               </Button>
             </>
           )}
