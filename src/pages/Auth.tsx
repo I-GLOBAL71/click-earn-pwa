@@ -1,11 +1,12 @@
-import { useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Zap } from "lucide-react";
+import { Zap, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -14,16 +15,39 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { signIn, signUp, user, isAdmin } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (user) {
+      if (isAdmin) {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/dashboard");
+      }
+    }
+  }, [user, isAdmin, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     
-    if (mode === "signup") {
-      toast.success("Compte créé avec succès ! Vous pouvez maintenant vous connecter.");
-      setMode("login");
-    } else {
-      toast.success("Connexion réussie !");
-      // TODO: Implement actual authentication
+    try {
+      if (mode === "signup") {
+        const { error } = await signUp(email, password, name);
+        if (error) throw error;
+        toast.success("Compte créé avec succès ! Vous pouvez maintenant vous connecter.");
+        setMode("login");
+      } else {
+        const { error } = await signIn(email, password);
+        if (error) throw error;
+        toast.success("Connexion réussie !");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Une erreur est survenue");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -98,8 +122,21 @@ const Auth = () => {
             </CardContent>
 
             <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" variant="hero" size="lg" className="w-full">
-                {mode === "login" ? "Se connecter" : "Créer mon compte"}
+              <Button 
+                type="submit" 
+                variant="hero" 
+                size="lg" 
+                className="w-full"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {mode === "login" ? "Connexion..." : "Création..."}
+                  </>
+                ) : (
+                  mode === "login" ? "Se connecter" : "Créer mon compte"
+                )}
               </Button>
 
               <div className="text-center text-sm text-muted-foreground">
