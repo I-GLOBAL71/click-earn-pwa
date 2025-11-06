@@ -15,6 +15,7 @@ import { AdminLayout } from "./components/admin/AdminLayout";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { AdminAmbassadors } from "./pages/admin/AdminAmbassadors";
 import { AdminProducts } from "./pages/admin/AdminProducts";
+import { AdminProductImport } from "./pages/admin/AdminProductImport";
 import { AdminCommissions } from "./pages/admin/AdminCommissions";
 import { AdminAnalytics } from "./pages/admin/AdminAnalytics";
 import { AdminPayments } from "./pages/admin/AdminPayments";
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="ambassadors" element={<AdminAmbassadors />} />
             <Route path="products" element={<AdminProducts />} />
+            <Route path="products/import" element={<AdminProductImport />} />
             <Route path="commissions" element={<AdminCommissions />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="payments" element={<AdminPayments />} />

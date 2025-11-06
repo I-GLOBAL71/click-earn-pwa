@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Search, Sparkles } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Sparkles, Upload } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -44,6 +45,7 @@ export const AdminProducts = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -181,23 +183,30 @@ export const AdminProducts = () => {
   );
 
   return (
-    <div className="p-8 space-y-8 animate-fade-in">
-      <div className="flex justify-between items-center">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Gestion des Produits</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Gestion des Produits</h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-2">
             Ajoutez et gérez vos produits
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => { resetForm(); setEditingProduct(null); }}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nouveau Produit
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
+        <div className="flex gap-2">
+          <Button onClick={() => navigate('/admin/products/import')} variant="outline" className="flex-1 md:flex-none">
+            <Upload className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Importer Alibaba</span>
+            <span className="sm:hidden">Importer</span>
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => { resetForm(); setEditingProduct(null); }} className="flex-1 md:flex-none">
+                <Plus className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Nouveau Produit</span>
+                <span className="sm:hidden">Nouveau</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
               <DialogTitle>
                 {editingProduct ? "Modifier le produit" : "Nouveau produit"}
               </DialogTitle>
@@ -309,6 +318,7 @@ export const AdminProducts = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card className="shadow-card">
@@ -333,7 +343,7 @@ export const AdminProducts = () => {
               Aucun produit trouvé
             </p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredProducts.map((product) => (
                 <Card key={product.id} className="overflow-hidden hover:shadow-elegant transition-smooth">
                   {product.image_url && (

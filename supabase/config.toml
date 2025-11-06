@@ -1,1 +1,7 @@
 project_id = "zfnebgfodivuhmchfyfa"
+
+[functions.rewrite-product]
+verify_jwt = false
+
+[functions.import-alibaba-product]
+verify_jwt = false
