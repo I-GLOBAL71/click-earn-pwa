@@ -99,14 +99,14 @@ const Onboarding = () => {
   };
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br ${step.gradient} relative overflow-hidden flex flex-col`}>
+    <div className={`h-screen bg-gradient-to-br ${step.gradient} relative overflow-hidden flex flex-col`}>
       {/* Animated background particles */}
       {showConfetti && (
         <div className="absolute inset-0 pointer-events-none">
           {[...Array(20)].map((_, i) => (
             <div
               key={i}
-              className="absolute text-2xl animate-scale-in"
+              className="absolute text-xl animate-scale-in"
               style={{
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
@@ -121,111 +121,112 @@ const Onboarding = () => {
       )}
 
       {/* Skip button */}
-      <div className="container pt-6 relative z-10">
+      <div className="container pt-3 relative z-10">
         <Button 
           variant="ghost" 
           onClick={handleSkip} 
-          className="ml-auto block hover:bg-accent/50"
+          size="sm"
+          className="ml-auto block hover:bg-accent/50 text-xs"
         >
-          Explorer les produits →
+          Explorer →
         </Button>
       </div>
 
       {/* Content */}
-      <div className="flex-1 container flex flex-col items-center justify-center px-6 py-8 relative z-10">
-        <div className="w-full max-w-2xl space-y-6 animate-fade-in">
+      <div className="flex-1 container flex flex-col items-center justify-center px-4 relative z-10 overflow-hidden">
+        <div className="w-full max-w-md space-y-3 animate-fade-in">
           {/* Animated Icon with emoji */}
-          <div className="mx-auto relative">
-            <div className="w-28 h-28 rounded-full gradient-primary flex items-center justify-center shadow-glow animate-pulse">
-              <Icon className="w-14 h-14 text-white" />
+          <div className="mx-auto relative w-fit">
+            <div className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center shadow-glow animate-pulse">
+              <Icon className="w-8 h-8 text-white" />
             </div>
-            <div className="absolute -top-2 -right-2 text-4xl animate-bounce">
+            <div className="absolute -top-1 -right-1 text-2xl animate-bounce">
               {step.emoji}
             </div>
           </div>
 
           {/* Counter for step 1 */}
           {currentStep === 0 && (
-            <div className="text-center">
-              <div className="text-5xl sm:text-6xl font-bold gradient-primary bg-clip-text text-transparent animate-scale-in">
+            <div className="text-center py-1">
+              <div className="text-3xl font-bold gradient-primary bg-clip-text text-transparent animate-scale-in">
                 {counter.toLocaleString('fr-FR')} FCFA
               </div>
-              <div className="text-xl text-muted-foreground mt-2 flex items-center justify-center gap-2">
-                <Sparkles className="w-5 h-5 text-secondary animate-glow" />
+              <div className="text-sm text-muted-foreground mt-1 flex items-center justify-center gap-2">
+                <Sparkles className="w-3 h-3 text-secondary animate-glow" />
                 <span>→ ∞</span>
-                <Sparkles className="w-5 h-5 text-secondary animate-glow" />
+                <Sparkles className="w-3 h-3 text-secondary animate-glow" />
               </div>
             </div>
           )}
 
           {/* Split screen visual for step 2 */}
           {currentStep === 1 && (
-            <div className="grid grid-cols-2 gap-4 my-6">
-              <div className="text-center p-4 rounded-lg bg-card/50 backdrop-blur-sm shadow-card animate-slide-up">
-                <div className="text-4xl mb-2">🎮</div>
-                <div className="text-sm text-muted-foreground">Découvrez</div>
+            <div className="grid grid-cols-2 gap-2 py-1">
+              <div className="text-center p-2 rounded-lg bg-card/50 backdrop-blur-sm shadow-card animate-slide-up">
+                <div className="text-2xl mb-1">🎮</div>
+                <div className="text-xs text-muted-foreground">Découvrez</div>
               </div>
-              <div className="text-center p-4 rounded-lg bg-card/50 backdrop-blur-sm shadow-card animate-slide-up" style={{ animationDelay: '0.1s' }}>
-                <div className="text-4xl mb-2">💸</div>
-                <div className="text-sm text-muted-foreground">Gagnez</div>
+              <div className="text-center p-2 rounded-lg bg-card/50 backdrop-blur-sm shadow-card animate-slide-up" style={{ animationDelay: '0.1s' }}>
+                <div className="text-2xl mb-1">💸</div>
+                <div className="text-xs text-muted-foreground">Gagnez</div>
               </div>
             </div>
           )}
 
           {/* Day/Night visual for step 3 */}
           {currentStep === 2 && (
-            <div className="flex items-center justify-center gap-4 my-6">
-              <div className="text-center p-3 rounded-full bg-card/50 backdrop-blur-sm shadow-card animate-scale-in">
-                <div className="text-3xl">🌞</div>
+            <div className="flex items-center justify-center gap-2 py-1">
+              <div className="text-center p-2 rounded-full bg-card/50 backdrop-blur-sm shadow-card animate-scale-in">
+                <div className="text-xl">🌞</div>
               </div>
-              <ArrowRight className="w-6 h-6 text-primary animate-pulse" />
-              <div className="text-center p-3 rounded-full bg-card/50 backdrop-blur-sm shadow-card animate-scale-in" style={{ animationDelay: '0.2s' }}>
-                <div className="text-3xl">🌙</div>
+              <ArrowRight className="w-4 h-4 text-primary animate-pulse" />
+              <div className="text-center p-2 rounded-full bg-card/50 backdrop-blur-sm shadow-card animate-scale-in" style={{ animationDelay: '0.2s' }}>
+                <div className="text-xl">🌙</div>
               </div>
-              <ArrowRight className="w-6 h-6 text-secondary animate-pulse" style={{ animationDelay: '0.1s' }} />
-              <div className="text-center p-3 rounded-full bg-card/50 backdrop-blur-sm shadow-card animate-scale-in" style={{ animationDelay: '0.4s' }}>
-                <div className="text-3xl">💰</div>
+              <ArrowRight className="w-4 h-4 text-secondary animate-pulse" style={{ animationDelay: '0.1s' }} />
+              <div className="text-center p-2 rounded-full bg-card/50 backdrop-blur-sm shadow-card animate-scale-in" style={{ animationDelay: '0.4s' }}>
+                <div className="text-xl">💰</div>
               </div>
             </div>
           )}
 
           {/* Main Content */}
-          <div className="text-center space-y-4">
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
+          <div className="text-center space-y-2">
+            <h1 className="text-xl font-bold tracking-tight leading-tight">
               {step.title}
             </h1>
-            <p className="text-lg sm:text-xl text-primary font-semibold italic">
+            <p className="text-sm text-primary font-semibold italic leading-tight">
               {step.subtitle}
             </p>
-            <p className="text-base text-muted-foreground leading-relaxed max-w-xl mx-auto">
+            <p className="text-xs text-muted-foreground leading-snug">
               {step.description}
             </p>
           </div>
 
           {/* Features list */}
-          <div className="space-y-3 max-w-md mx-auto">
+          <div className="space-y-2">
             {step.features.map((feature, index) => (
               <div
                 key={index}
-                className="text-left p-3 rounded-lg bg-card/50 backdrop-blur-sm shadow-card animate-slide-up"
+                className="text-left p-2 rounded-lg bg-card/50 backdrop-blur-sm shadow-card animate-slide-up"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <p className="text-sm sm:text-base font-medium">{feature}</p>
+                <p className="text-xs font-medium leading-tight">{feature}</p>
               </div>
             ))}
           </div>
 
           {/* Progress indicators */}
-          <div className="flex justify-center gap-2 pt-4">
+          <div className="flex justify-center gap-2 pt-2">
             {steps.map((_, index) => (
               <div
                 key={index}
-                className={`h-2 rounded-full transition-all duration-300 ${
+                className={`h-1.5 rounded-full transition-all duration-300 ${
                   index === currentStep
-                    ? "w-12 gradient-primary shadow-glow"
+                    ? "w-8 gradient-primary shadow-glow"
                     : index < currentStep
-                    ? "w-2 bg-secondary"
-                    : "w-2 bg-muted"
+                    ? "w-1.5 bg-secondary"
+                    : "w-1.5 bg-muted"
                 }`}
               />
             ))}
@@ -235,18 +236,17 @@ const Onboarding = () => {
           <Button
             onClick={handleNext}
             variant="hero"
-            size="xl"
-            className="w-full group text-lg font-bold"
+            className="w-full group text-sm font-bold h-12"
           >
             {currentStep < steps.length - 1 ? (
               <>
                 {currentStep === 0 ? "Je veux gagner plus" : "Voir la magie"}
-                <ArrowRight className="h-6 w-6 transition-transform group-hover:translate-x-1" />
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </>
             ) : (
               <>
-                🚀 DÉMARRER MA MACHINE À CASH
-                <Sparkles className="h-6 w-6 animate-glow" />
+                🚀 DÉMARRER
+                <Sparkles className="h-4 w-4 animate-glow" />
               </>
             )}
           </Button>
