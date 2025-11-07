@@ -69,6 +69,11 @@ serve(async (req) => {
     const imageRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
     const images = new Set<string>();
     let match;
+    let totalImagesFound = 0;
+    let filteredByPath = 0;
+    let filteredByKeywords = 0;
+    let filteredByDimensions = 0;
+    let filteredByExtension = 0;
     
     // Comprehensive keywords to exclude (logos, icons, UI elements, banners)
     const excludeKeywords = [
@@ -79,9 +84,14 @@ serve(async (req) => {
       'O1CN01', // Alibaba system images
     ];
     
+    console.log("=== Début de l'extraction des images ===");
+    
     while ((match = imageRegex.exec(html)) !== null) {
       const imgUrl = match[1];
       const urlLower = imgUrl.toLowerCase();
+      totalImagesFound++;
+      
+      console.log(`\n[Image ${totalImagesFound}] URL trouvée: ${imgUrl.substring(0, 100)}...`);
       
       // ONLY accept images from /kf/ path with specific structure
       // Product images on Alibaba are typically at sc01-04.alicdn.com/kf/[hash].[jpg|png]
@@ -91,31 +101,65 @@ serve(async (req) => {
                          imgUrl.includes('sc03.alicdn') ||
                          imgUrl.includes('sc04.alicdn'));
       
-      if (!isKfImage) continue;
+      if (!isKfImage) {
+        console.log(`  ❌ Rejetée: pas une image /kf/ (includes /kf/: ${imgUrl.includes('/kf/')}, includes sc0X: ${imgUrl.includes('sc01.alicdn') || imgUrl.includes('sc02.alicdn')})`);
+        filteredByPath++;
+        continue;
+      }
+      
+      console.log(`  ✓ Image /kf/ valide`);
       
       // Exclude if contains any exclude keywords
-      const shouldExclude = excludeKeywords.some(keyword => 
+      const foundKeywords = excludeKeywords.filter(keyword => 
         urlLower.includes(keyword.toLowerCase())
       );
       
-      if (shouldExclude) continue;
+      if (foundKeywords.length > 0) {
+        console.log(`  ❌ Rejetée: contient mots-clés exclus: ${foundKeywords.join(', ')}`);
+        filteredByKeywords++;
+        continue;
+      }
+      
+      console.log(`  ✓ Pas de mots-clés exclus`);
       
       // Exclude images with dimension suffixes (thumbnails/icons)
       const hasDimensionSuffix = /_\d+x\d+\./i.test(imgUrl) || 
                                  /\.\w+_\d+x\d+\./i.test(imgUrl);
       
-      if (hasDimensionSuffix) continue;
+      if (hasDimensionSuffix) {
+        console.log(`  ❌ Rejetée: contient suffixe de dimension`);
+        filteredByDimensions++;
+        continue;
+      }
+      
+      console.log(`  ✓ Pas de suffixe de dimension`);
       
       // Only accept .jpg, .jpeg, .png images
       const hasValidExtension = /\.(jpg|jpeg|png)($|\?)/i.test(imgUrl);
       
-      if (!hasValidExtension) continue;
+      if (!hasValidExtension) {
+        console.log(`  ❌ Rejetée: extension invalide`);
+        filteredByExtension++;
+        continue;
+      }
+      
+      console.log(`  ✓ Extension valide`);
       
       // Extract clean URL (remove query parameters if present)
       const cleanUrl = imgUrl.split('?')[0];
       
+      console.log(`  ✅ IMAGE ACCEPTÉE: ${cleanUrl}`);
       images.add(cleanUrl);
     }
+    
+    console.log("\n=== Résumé de l'extraction ===");
+    console.log(`Total d'images trouvées: ${totalImagesFound}`);
+    console.log(`Filtrées par chemin: ${filteredByPath}`);
+    console.log(`Filtrées par mots-clés: ${filteredByKeywords}`);
+    console.log(`Filtrées par dimensions: ${filteredByDimensions}`);
+    console.log(`Filtrées par extension: ${filteredByExtension}`);
+    console.log(`Images acceptées: ${images.size}`);
+    console.log(`Liste des images acceptées:`, Array.from(images));
 
     // Also try to find images in JSON-LD or data attributes
     const jsonLdMatch = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>([^<]+)<\/script>/i);
