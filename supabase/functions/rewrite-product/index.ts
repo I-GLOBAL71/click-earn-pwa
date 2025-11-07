@@ -19,12 +19,12 @@ serve(async (req) => {
     }
 
     const systemPrompt = language === 'fr' 
-      ? "Tu es un expert en rédaction de descriptions de produits pour le e-commerce. Réécris la description du produit de manière attractive, professionnelle et optimisée pour le SEO. Utilise un ton engageant qui donne envie d'acheter. Mets en avant les bénéfices et caractéristiques clés."
-      : "You are an expert in writing product descriptions for e-commerce. Rewrite the product description in an attractive, professional way optimized for SEO. Use an engaging tone that makes people want to buy. Highlight key benefits and features.";
+      ? "Tu es un expert en rédaction de contenus pour le e-commerce. Tu dois réécrire le titre et la description du produit de manière attractive, professionnelle et optimisée pour le SEO. Utilise un ton engageant qui donne envie d'acheter. Pour le titre, garde-le concis (maximum 80 caractères). Pour la description, mets en avant les bénéfices et caractéristiques clés."
+      : "You are an expert in writing content for e-commerce. You must rewrite both the product title and description in an attractive, professional way optimized for SEO. Use an engaging tone that makes people want to buy. For the title, keep it concise (maximum 80 characters). For the description, highlight key benefits and features.";
 
     const userPrompt = language === 'fr'
-      ? `Produit: ${productName}\n\nDescription actuelle: ${productDescription}\n\nRéécris cette description de manière plus attractive et professionnelle en français.`
-      : `Product: ${productName}\n\nCurrent description: ${productDescription}\n\nRewrite this description in a more attractive and professional way in English.`;
+      ? `Titre actuel: ${productName}\n\nDescription actuelle: ${productDescription}\n\nRéécris le titre (maximum 80 caractères) et la description de manière plus attractive et professionnelle en français. Réponds au format JSON avec les clés "title" et "description".`
+      : `Current title: ${productName}\n\nCurrent description: ${productDescription}\n\nRewrite the title (maximum 80 characters) and description in a more attractive and professional way in English. Respond in JSON format with "title" and "description" keys.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -38,7 +38,7 @@ serve(async (req) => {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.8,
+        response_format: { type: "json_object" }
       }),
     });
 
@@ -61,14 +61,21 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const rewrittenDescription = data.choices?.[0]?.message?.content;
+    const content = data.choices?.[0]?.message?.content;
 
-    if (!rewrittenDescription) {
-      throw new Error('Aucune description générée');
+    if (!content) {
+      throw new Error('Aucun contenu généré');
+    }
+
+    const parsedContent = JSON.parse(content);
+    const { title: rewrittenTitle, description: rewrittenDescription } = parsedContent;
+
+    if (!rewrittenTitle || !rewrittenDescription) {
+      throw new Error('Format de réponse invalide');
     }
 
     return new Response(
-      JSON.stringify({ rewrittenDescription }),
+      JSON.stringify({ rewrittenTitle, rewrittenDescription }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

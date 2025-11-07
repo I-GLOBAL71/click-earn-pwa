@@ -65,19 +65,48 @@ serve(async (req) => {
       extractData.price = Math.round(priceUSD * 600).toString();
     }
 
-    // Extract images - look for common image patterns
+    // Extract images - look for product images only
     const imageRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
     const images = new Set<string>();
     let match;
     
+    // Keywords to exclude (logos, icons, UI elements)
+    const excludeKeywords = [
+      'logo', 'icon', 'flag', 'badge', 'payment', 'visa', 'mastercard',
+      'paypal', 'amex', 'discover', 'alipay', 'wechat', 'google', 'apple',
+      'banner', 'header', 'footer', 'button', 'arrow', 'star', 'check',
+      'avatar', 'profile', 'common', 'imgextra/i', 'tps-', '-tps-'
+    ];
+    
     while ((match = imageRegex.exec(html)) !== null) {
       const imgUrl = match[1];
-      // Filter for product images (usually contain specific keywords and are large enough)
+      const urlLower = imgUrl.toLowerCase();
+      
+      // Filter for product images
       if (imgUrl.includes('http') && 
-          (imgUrl.includes('alicdn.com') || imgUrl.includes('alibaba.com')) &&
-          !imgUrl.includes('logo') && 
-          !imgUrl.includes('icon')) {
-        images.add(imgUrl);
+          (imgUrl.includes('alicdn.com') || imgUrl.includes('alibaba.com'))) {
+        
+        // Exclude if contains any exclude keywords
+        const shouldExclude = excludeKeywords.some(keyword => 
+          urlLower.includes(keyword.toLowerCase())
+        );
+        
+        // Only include images from /kf/ path (product images) or large images
+        const isProductImage = imgUrl.includes('/kf/') || 
+                              imgUrl.includes('sc01.alicdn') ||
+                              imgUrl.includes('sc02.alicdn') ||
+                              imgUrl.includes('sc03.alicdn') ||
+                              imgUrl.includes('sc04.alicdn');
+        
+        if (!shouldExclude && isProductImage) {
+          // Exclude very small images (likely icons)
+          if (!imgUrl.includes('_80x80') && 
+              !imgUrl.includes('_50x50') && 
+              !imgUrl.includes('_60x60') &&
+              !imgUrl.includes('-tps-')) {
+            images.add(imgUrl);
+          }
+        }
       }
     }
 

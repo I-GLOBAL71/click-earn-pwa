@@ -132,12 +132,13 @@ export const AdminProductImport = () => {
 
       setFormData({
         ...formData,
+        name: data.rewrittenTitle,
         description: data.rewrittenDescription
       });
 
       toast({
         title: "Réécriture réussie",
-        description: "La description a été améliorée par l'IA",
+        description: "Le titre et la description ont été améliorés par l'IA",
       });
     } catch (error: any) {
       toast({
