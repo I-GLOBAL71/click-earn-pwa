@@ -65,118 +65,114 @@ serve(async (req) => {
       extractData.price = Math.round(priceUSD * 600).toString();
     }
 
-    // Extract images - STRICT filtering for product images only
-    const imageRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+    // Extract images from structured JSON data (more reliable than HTML parsing)
     const images = new Set<string>();
-    let match;
-    let totalImagesFound = 0;
-    let filteredByPath = 0;
-    let filteredByKeywords = 0;
-    let filteredByDimensions = 0;
-    let filteredByExtension = 0;
-    
-    // Comprehensive keywords to exclude (logos, icons, UI elements, banners)
-    const excludeKeywords = [
-      'logo', 'icon', 'flag', 'badge', 'payment', 'visa', 'mastercard',
-      'paypal', 'amex', 'discover', 'alipay', 'wechat', 'google', 'apple',
-      'banner', 'header', 'footer', 'button', 'arrow', 'star', 'check',
-      'avatar', 'profile', 'common', 'imgextra', 'tps-', '-tps-',
-      'O1CN01', // Alibaba system images
-    ];
     
     console.log("=== Début de l'extraction des images ===");
     
-    while ((match = imageRegex.exec(html)) !== null) {
-      const imgUrl = match[1];
-      const urlLower = imgUrl.toLowerCase();
-      totalImagesFound++;
-      
-      console.log(`\n[Image ${totalImagesFound}] URL trouvée: ${imgUrl.substring(0, 100)}...`);
-      
-      // ONLY accept images from /kf/ path with specific structure
-      // Product images on Alibaba are typically at sc01-04.alicdn.com/kf/[hash].[jpg|png]
-      const isKfImage = imgUrl.includes('/kf/') && 
-                        (imgUrl.includes('sc01.alicdn') ||
-                         imgUrl.includes('sc02.alicdn') ||
-                         imgUrl.includes('sc03.alicdn') ||
-                         imgUrl.includes('sc04.alicdn'));
-      
-      if (!isKfImage) {
-        console.log(`  ❌ Rejetée: pas une image /kf/ (includes /kf/: ${imgUrl.includes('/kf/')}, includes sc0X: ${imgUrl.includes('sc01.alicdn') || imgUrl.includes('sc02.alicdn')})`);
-        filteredByPath++;
-        continue;
+    // Method 1: Extract from window.__INITIAL_DATA__ or similar JSON structures
+    const jsonDataPatterns = [
+      /window\.__INITIAL_DATA__\s*=\s*({.*?});/s,
+      /"imageModule"\s*:\s*({.*?})/s,
+      /"imageList"\s*:\s*(\[.*?\])/s,
+      /"productImage"\s*:\s*({.*?})/s,
+    ];
+    
+    let foundInJson = false;
+    for (const pattern of jsonDataPatterns) {
+      const match = html.match(pattern);
+      if (match) {
+        console.log(`✓ Trouvé données JSON avec pattern: ${pattern.source.substring(0, 50)}...`);
+        try {
+          const jsonStr = match[1];
+          const jsonData = JSON.parse(jsonStr);
+          
+          // Extract image URLs from various possible structures
+          const extractImagesFromObj = (obj: any, path = '') => {
+            if (!obj) return;
+            
+            if (typeof obj === 'string' && obj.includes('alicdn.com') && /\.(jpg|jpeg|png)/.test(obj)) {
+              console.log(`  → Image trouvée dans JSON (${path}): ${obj}`);
+              images.add(obj.split('?')[0]);
+              foundInJson = true;
+            } else if (Array.isArray(obj)) {
+              obj.forEach((item, i) => extractImagesFromObj(item, `${path}[${i}]`));
+            } else if (typeof obj === 'object') {
+              for (const key in obj) {
+                if (key.toLowerCase().includes('image') || key.toLowerCase().includes('url')) {
+                  extractImagesFromObj(obj[key], `${path}.${key}`);
+                }
+              }
+            }
+          };
+          
+          extractImagesFromObj(jsonData, 'root');
+        } catch (e) {
+          const errorMsg = e instanceof Error ? e.message : String(e);
+          console.log(`  ✗ Erreur parsing JSON: ${errorMsg}`);
+        }
       }
-      
-      console.log(`  ✓ Image /kf/ valide`);
-      
-      // Exclude if contains any exclude keywords
-      const foundKeywords = excludeKeywords.filter(keyword => 
-        urlLower.includes(keyword.toLowerCase())
-      );
-      
-      if (foundKeywords.length > 0) {
-        console.log(`  ❌ Rejetée: contient mots-clés exclus: ${foundKeywords.join(', ')}`);
-        filteredByKeywords++;
-        continue;
-      }
-      
-      console.log(`  ✓ Pas de mots-clés exclus`);
-      
-      // Exclude images with dimension suffixes (thumbnails/icons)
-      const hasDimensionSuffix = /_\d+x\d+\./i.test(imgUrl) || 
-                                 /\.\w+_\d+x\d+\./i.test(imgUrl);
-      
-      if (hasDimensionSuffix) {
-        console.log(`  ❌ Rejetée: contient suffixe de dimension`);
-        filteredByDimensions++;
-        continue;
-      }
-      
-      console.log(`  ✓ Pas de suffixe de dimension`);
-      
-      // Only accept .jpg, .jpeg, .png images
-      const hasValidExtension = /\.(jpg|jpeg|png)($|\?)/i.test(imgUrl);
-      
-      if (!hasValidExtension) {
-        console.log(`  ❌ Rejetée: extension invalide`);
-        filteredByExtension++;
-        continue;
-      }
-      
-      console.log(`  ✓ Extension valide`);
-      
-      // Extract clean URL (remove query parameters if present)
-      const cleanUrl = imgUrl.split('?')[0];
-      
-      console.log(`  ✅ IMAGE ACCEPTÉE: ${cleanUrl}`);
-      images.add(cleanUrl);
     }
     
-    console.log("\n=== Résumé de l'extraction ===");
-    console.log(`Total d'images trouvées: ${totalImagesFound}`);
-    console.log(`Filtrées par chemin: ${filteredByPath}`);
-    console.log(`Filtrées par mots-clés: ${filteredByKeywords}`);
-    console.log(`Filtrées par dimensions: ${filteredByDimensions}`);
-    console.log(`Filtrées par extension: ${filteredByExtension}`);
-    console.log(`Images acceptées: ${images.size}`);
-    console.log(`Liste des images acceptées:`, Array.from(images));
-
-    // Also try to find images in JSON-LD or data attributes
+    console.log(`\nImages extraites du JSON: ${images.size}`);
+    
+    // Method 2: Fallback to HTML img tags (only if no JSON images found)
+    if (images.size === 0) {
+      console.log("\nAucune image trouvée dans JSON, essai extraction HTML...");
+      
+      const imageRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+      let match;
+      let totalImagesFound = 0;
+      
+      while ((match = imageRegex.exec(html)) !== null) {
+        const imgUrl = match[1];
+        totalImagesFound++;
+        
+        // Only accept images from s.alicdn.com or sc01-04.alicdn.com
+        if (!imgUrl.includes('alicdn.com')) continue;
+        
+        // Must have valid extension
+        if (!/\.(jpg|jpeg|png)($|\?)/i.test(imgUrl)) continue;
+        
+        // Exclude thumbnails and small images
+        if (/_\d+x\d+\./i.test(imgUrl)) continue;
+        
+        // Exclude UI elements
+        const excludePatterns = ['logo', 'icon', 'banner', 'button', 'payment', 'O1CN01'];
+        if (excludePatterns.some(p => imgUrl.toLowerCase().includes(p))) continue;
+        
+        const cleanUrl = imgUrl.split('?')[0];
+        console.log(`  → Image HTML acceptée: ${cleanUrl}`);
+        images.add(cleanUrl);
+      }
+      
+      console.log(`\nImages extraites du HTML: ${images.size}`);
+    }
+    
+    // Method 3: Also try JSON-LD structured data
     const jsonLdMatch = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>([^<]+)<\/script>/i);
     if (jsonLdMatch) {
       try {
         const jsonData = JSON.parse(jsonLdMatch[1]);
         if (jsonData.image) {
           if (Array.isArray(jsonData.image)) {
-            jsonData.image.forEach((img: string) => images.add(img));
+            jsonData.image.forEach((img: string) => {
+              console.log(`  → Image JSON-LD: ${img}`);
+              images.add(img.split('?')[0]);
+            });
           } else {
-            images.add(jsonData.image);
+            console.log(`  → Image JSON-LD: ${jsonData.image}`);
+            images.add(jsonData.image.split('?')[0]);
           }
         }
       } catch (e) {
         console.error("Erreur parsing JSON-LD:", e);
       }
     }
+    
+    console.log("\n=== Résumé de l'extraction ===");
+    console.log(`Total images acceptées: ${images.size}`);
+    console.log(`Liste:`, Array.from(images));
 
     const imageArray = Array.from(images);
     if (imageArray.length > 0) {
