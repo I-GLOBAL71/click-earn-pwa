@@ -3,5 +3,11 @@ project_id = "zfnebgfodivuhmchfyfa"
 [functions.rewrite-product]
 verify_jwt = false
 
+[functions.generate-referral-link]
+verify_jwt = true
+
+[functions.track-click]
+verify_jwt = false
+
 [functions.import-alibaba-product]
 verify_jwt = false
