@@ -158,11 +158,11 @@ const Products = () => {
                   </div>
                 </CardContent>
 
-                <CardFooter className="flex gap-2">
+                <CardFooter className="flex flex-col gap-2 sm:flex-row">
                   <Button
                     onClick={() => handleViewDetails(product.id)}
                     variant="outline"
-                    className="flex-1"
+                    className="w-full sm:flex-1"
                     size="lg"
                   >
                     <Eye className="h-4 w-4 mr-2" />
@@ -171,7 +171,7 @@ const Products = () => {
                   <Button
                     onClick={() => handleRecommend(product.id)}
                     disabled={generateLinkMutation.isPending}
-                    className="flex-1 gradient-primary hover:opacity-90 transition-opacity"
+                    className="w-full sm:flex-1 gradient-primary hover:opacity-90 transition-opacity font-semibold"
                     size="lg"
                   >
                     {generateLinkMutation.isPending ? (
@@ -179,7 +179,10 @@ const Products = () => {
                     ) : (
                       <Share2 className="h-4 w-4 mr-2" />
                     )}
-                    Recommander
+                    <span className="flex flex-col items-start leading-tight">
+                      <span className="text-xs opacity-90">Gagner {formatCommission(product)}</span>
+                      <span>Recommander</span>
+                    </span>
                   </Button>
                 </CardFooter>
               </Card>
