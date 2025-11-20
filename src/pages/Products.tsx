@@ -34,12 +34,21 @@ const Products = () => {
   // Mutation pour générer le lien de recommandation
   const generateLinkMutation = useMutation({
     mutationFn: async (productId: string) => {
-      const { data, error } = await supabase.functions.invoke('generate-referral-link', {
-        body: { productId }
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      const resp = await fetch(`/api/generate-referral-link`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ productId }),
       });
-      
-      if (error) throw error;
-      return data;
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err?.error || 'Erreur lors de la génération du lien');
+      }
+      return resp.json();
     },
     onSuccess: (data, productId) => {
       const product = products.find(p => p.id === productId);

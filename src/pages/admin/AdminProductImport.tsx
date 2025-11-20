@@ -53,16 +53,16 @@ export const AdminProductImport = () => {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('import-alibaba-product', {
-        body: { url: alibabaUrl }
+      const resp = await fetch('/api/import-alibaba-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: alibabaUrl })
       });
-
-      if (error) throw error;
-
-      if (data.error) {
-        throw new Error(data.error);
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err?.error || "Impossible d'extraire les données");
       }
-
+      const data = await resp.json();
       setProductData(data);
       setFormData({
         name: data.title || "",
@@ -116,20 +116,20 @@ export const AdminProductImport = () => {
 
     setRewriting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('rewrite-product', {
-        body: {
+      const resp = await fetch('/api/rewrite-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           productName: formData.name,
           productDescription: formData.description,
-          language: "fr"
-        }
+          language: 'fr'
+        })
       });
-
-      if (error) throw error;
-
-      if (data.error) {
-        throw new Error(data.error);
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err?.error || 'Impossible de réécrire la description');
       }
-
+      const data = await resp.json();
       setFormData({
         ...formData,
         name: data.rewrittenTitle,
