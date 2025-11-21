@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
+// Removed lovable-tagger to avoid injecting Lovable branding in dev
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => ({
     host: "localhost",
     port: 3000,
   },
-  plugins: [mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

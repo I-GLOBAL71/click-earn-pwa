@@ -35,24 +35,35 @@ const Products = () => {
   const generateLinkMutation = useMutation({
     mutationFn: async (productId: string) => {
       const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      const resp = await fetch(`/api/generate-referral-link`, {
+      if (!sessionData?.session) {
+        throw new Error('Tu dois être connecté pour générer un lien');
+      }
+      const token = sessionData.session.access_token as string;
+      const resp = await fetch('/api/generate-referral-link', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ productId }),
+        body: JSON.stringify({ productId })
       });
+      const json = await resp.json();
       if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err?.error || 'Erreur lors de la génération du lien');
+        throw new Error(json?.error || 'Erreur lors de la génération du lien');
       }
-      return resp.json();
+      return json;
     },
     onSuccess: (data, productId) => {
       const product = products.find(p => p.id === productId);
-      setReferralUrl(data.url);
+      const appPublic = import.meta.env.VITE_APP_PUBLIC_URL || 'https://click-earn-pwa.vercel.app';
+      let finalUrl: string = data?.url || "";
+      try {
+        const u = new URL(finalUrl);
+        finalUrl = `${appPublic}${u.pathname}${u.search}`;
+      } catch {
+        finalUrl = String(finalUrl).replace(/https?:\/\/[^/]*lovable\.app/gi, appPublic);
+      }
+      setReferralUrl(finalUrl);
       setSelectedProduct(product);
       setShareModalOpen(true);
       toast.success("Ton lien est prêt ! Partage-le maintenant pour gagner tes commissions.");

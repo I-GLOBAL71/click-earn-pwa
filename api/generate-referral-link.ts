@@ -18,7 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const supabaseUrl = process.env.SUPABASE_URL || "";
     const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
     const dbUrl = process.env.NEON_DATABASE_URL || "";
-    const appPublicUrl = process.env.APP_PUBLIC_URL || "https://app.lovable.app";
+    const appPublicUrl = process.env.APP_PUBLIC_URL || "https://click-earn-pwa.vercel.app";
 
     if (!supabaseUrl || !supabaseAnonKey) {
       return res.status(500).json({ error: "SUPABASE_URL et SUPABASE_ANON_KEY requis" });

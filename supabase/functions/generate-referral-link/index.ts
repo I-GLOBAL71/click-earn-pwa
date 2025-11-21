@@ -45,8 +45,8 @@ serve(async (req) => {
     if (existingLink) {
       console.log(`Lien existant trouvé: ${existingLink.code}`);
       
-      const baseUrl = Deno.env.get('SUPABASE_URL')?.replace('https://', '').split('.')[0] || 'app';
-      const referralUrl = `https://${baseUrl}.lovable.app/r/${existingLink.code}?utm_source=ambassador&utm_medium=referral&utm_campaign=${productId}`;
+      const publicBase = (Deno.env.get('APP_PUBLIC_URL') || 'http://localhost:3000').replace(/\/$/, '');
+      const referralUrl = `${publicBase}/r/${existingLink.code}?utm_source=ambassador&utm_medium=referral&utm_campaign=${productId}`;
       
       return new Response(
         JSON.stringify({ 
@@ -107,8 +107,8 @@ serve(async (req) => {
 
     console.log(`Lien créé avec succès: ${newLink.id}`);
 
-    const baseUrl = Deno.env.get('SUPABASE_URL')?.replace('https://', '').split('.')[0] || 'app';
-    const referralUrl = `https://${baseUrl}.lovable.app/r/${code}?utm_source=ambassador&utm_medium=referral&utm_campaign=${productId}`;
+    const publicBase = (Deno.env.get('APP_PUBLIC_URL') || 'http://localhost:3000').replace(/\/$/, '');
+    const referralUrl = `${publicBase}/r/${code}?utm_source=ambassador&utm_medium=referral&utm_campaign=${productId}`;
 
     return new Response(
       JSON.stringify({ 
