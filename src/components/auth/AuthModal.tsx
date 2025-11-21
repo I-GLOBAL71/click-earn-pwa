@@ -39,7 +39,11 @@ export const AuthModal = ({ isOpen, onClose, askEmailForLink = false, onSignedIn
       onSignedIn && onSignedIn();
       onClose();
     } catch (e: any) {
-      toast.error(e?.message || "Erreur Google");
+      const code = String(e?.code || "");
+      if (code === "auth/operation-not-allowed") toast.error("Activez Google dans Firebase Authentication");
+      else if (code === "auth/invalid-api-key") toast.error("Clé API Firebase invalide");
+      else if (code === "auth/unauthorized-domain") toast.error("Ajoutez le domaine aux domaines autorisés Firebase");
+      else toast.error(e?.message || "Erreur Google");
     } finally {
       setGoogleLoading(false);
     }
@@ -58,7 +62,11 @@ export const AuthModal = ({ isOpen, onClose, askEmailForLink = false, onSignedIn
       window.localStorage.setItem("emailForSignIn", email);
       toast.success("Lien magique envoyé. Vérifie ton email.");
     } catch (e: any) {
-      toast.error(e?.message || "Erreur d’envoi du lien magique");
+      const code = String(e?.code || "");
+      if (code === "auth/operation-not-allowed") toast.error("Activez Email link dans Firebase Authentication");
+      else if (code === "auth/invalid-continue-uri" || code === "auth/missing-continue-uri") toast.error("URL de redirection invalide");
+      else if (code === "auth/unauthorized-domain") toast.error("Ajoutez le domaine aux domaines autorisés Firebase");
+      else toast.error(e?.message || "Erreur d’envoi du lien magique");
     } finally {
       setSending(false);
     }
