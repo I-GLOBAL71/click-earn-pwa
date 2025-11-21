@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Mail, ShieldCheck, Zap, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { getAuth, GoogleAuthProvider, signInWithPopup, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -29,15 +29,53 @@ export const AuthModal = ({ isOpen, onClose, askEmailForLink = false, onSignedIn
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    const auth = getAuth();
+    if (isSignInWithEmailLink(auth, window.location.href)) {
+      const stored = window.localStorage.getItem("emailForSignIn");
+      if (stored) {
+        setEmail(stored);
+        setValidating(true);
+        signInWithEmailLink(auth, stored, window.location.href)
+          .then(() => {
+            window.localStorage.removeItem("emailForSignIn");
+            toast.success("Connexion par lien magique réussie");
+            onSignedIn && onSignedIn();
+            onClose();
+          })
+          .catch((e: any) => {
+            const code = String(e?.code || "");
+            if (code === "auth/invalid-email") toast.error("Email invalide");
+            else toast.error(e?.message || "Erreur de validation du lien magique");
+          })
+          .finally(() => setValidating(false));
+      }
+    }
+  }, [isOpen, onClose, onSignedIn]);
+
   const handleGoogle = async () => {
     try {
       setGoogleLoading(true);
       const auth = getAuth();
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      toast.success("Connexion Google réussie");
-      onSignedIn && onSignedIn();
-      onClose();
+      provider.setCustomParameters({ prompt: "select_account" });
+
+      const isMobileOrStandalone = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+
+      if (isMobileOrStandalone) {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+
+      try {
+        await signInWithPopup(auth, provider);
+        toast.success("Connexion Google réussie");
+        onSignedIn && onSignedIn();
+        onClose();
+      } catch (err) {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
     } catch (e: any) {
       const code = String(e?.code || "");
       if (code === "auth/operation-not-allowed") toast.error("Activez Google dans Firebase Authentication");
@@ -96,6 +134,11 @@ export const AuthModal = ({ isOpen, onClose, askEmailForLink = false, onSignedIn
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] sm:max-w-md p-6 rounded-2xl border border-border shadow-elegant bg-gradient-to-br from-primary/10 to-secondary/10 backdrop-blur animate-scale-in">
+        {(googleLoading || sending || validating) && (
+          <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center rounded-2xl">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        )}
         <div className="flex flex-col items-center text-center space-y-3">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl gradient-primary shadow-glow">
             <Zap className="h-6 w-6 text-primary-foreground" />
