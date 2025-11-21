@@ -39,7 +39,8 @@ const Products = () => {
         throw new Error('Tu dois être connecté pour générer un lien');
       }
       const token = sessionData.session.access_token as string;
-      const resp = await fetch('/api/generate-referral-link', {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
+      const resp = await fetch(`${apiBase}/api/generate-referral-link`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
