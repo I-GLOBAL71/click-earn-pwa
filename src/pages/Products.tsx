@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Share2, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { getAuth } from "firebase/auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { ShareModal } from "@/components/products/ShareModal";
@@ -20,25 +20,23 @@ const Products = () => {
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data;
+      const apiBase = import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
+      const resp = await fetch(`${apiBase}/api/products`);
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json?.error || 'Erreur de chargement des produits');
+      return json;
     }
   });
 
   // Mutation pour générer le lien de recommandation
   const generateLinkMutation = useMutation({
     mutationFn: async (productId: string) => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session) {
+      const auth = getAuth();
+      const current = auth.currentUser;
+      if (!current) {
         throw new Error('Tu dois être connecté pour générer un lien');
       }
-      const token = sessionData.session.access_token as string;
+      const token = await current.getIdToken();
       const apiBase = import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
       const resp = await fetch(`${apiBase}/api/generate-referral-link`, {
         method: 'POST',

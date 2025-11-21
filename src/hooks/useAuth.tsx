@@ -1,98 +1,62 @@
 import { useEffect, useState } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { initializeApp } from "firebase/app";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as fbSignOut, type User } from "firebase/auth";
+
+const firebaseConfig = { 
+  apiKey: "AIzaSyChPS-qDvgxzkUIoSjHmPjd-kwjto7RyCo", 
+  authDomain: "meme-prix.firebaseapp.com", 
+  projectId: "meme-prix", 
+  storageBucket: "meme-prix.firebasestorage.app", 
+  messagingSenderId: "52882360918", 
+  appId: "1:52882360918:web:e41624d47629660b76c9f7", 
+  measurementId: "G-30C38NEYFW" 
+};
+
+initializeApp(firebaseConfig);
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Check admin role
-        if (session?.user) {
-          setTimeout(async () => {
-            const { data } = await supabase
-              .from('user_roles')
-              .select('role')
-              .eq('user_id', session.user.id)
-              .eq('role', 'admin')
-              .maybeSingle();
-            
-            setIsAdmin(!!data);
-            setLoading(false);
-          }, 0);
-        } else {
-          setIsAdmin(false);
-          setLoading(false);
-        }
-      }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        setTimeout(async () => {
-          const { data } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', session.user.id)
-            .eq('role', 'admin')
-            .maybeSingle();
-          
-          setIsAdmin(!!data);
-          setLoading(false);
-        }, 0);
-      } else {
-        setLoading(false);
-      }
+    const auth = getAuth();
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setIsAdmin(false);
+      setLoading(false);
     });
-
-    return () => subscription.unsubscribe();
+    return () => unsub();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
+    try {
+      await signInWithEmailAndPassword(getAuth(), email, password);
+      return { error: null };
+    } catch (e: any) {
+      return { error: e };
+    }
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
-    return { error };
+    try {
+      await createUserWithEmailAndPassword(getAuth(), email, password);
+      return { error: null };
+    } catch (e: any) {
+      return { error: e };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await fbSignOut(getAuth());
     navigate('/auth');
   };
 
   return {
     user,
-    session,
+    session: null,
     loading,
     isAdmin,
     signIn,
