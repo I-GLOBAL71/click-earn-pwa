@@ -20,7 +20,7 @@ export const AdminSettings = () => {
     queryFn: async () => {
       const auth = getAuth();
       const token = await auth.currentUser?.getIdToken();
-      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
       const res = await fetch(`${apiBase}/api/admin/roles`, {
         headers: { Authorization: token ? `Bearer ${token}` : '' },
       });
@@ -33,7 +33,7 @@ export const AdminSettings = () => {
     mutationFn: async () => {
       const auth = getAuth();
       const token = await auth.currentUser?.getIdToken();
-      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
       const res = await fetch(`${apiBase}/api/admin/roles`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
@@ -56,7 +56,7 @@ export const AdminSettings = () => {
     mutationFn: async (target: { email: string; role: string }) => {
       const auth = getAuth();
       const token = await auth.currentUser?.getIdToken();
-      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
       const res = await fetch(`${apiBase}/api/admin/roles`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },

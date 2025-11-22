@@ -39,7 +39,7 @@ export const AdminCommissions = () => {
     queryFn: async () => {
       const auth = getAuth();
       const token = await auth.currentUser?.getIdToken();
-      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
       const res = await fetch(`${apiBase}/api/commission-settings`, {
         headers: { Authorization: token ? `Bearer ${token}` : '' },
       });
@@ -69,7 +69,7 @@ export const AdminCommissions = () => {
       ];
       const auth = getAuth();
       const token = await auth.currentUser?.getIdToken();
-      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
       const res = await fetch(`${apiBase}/api/commission-settings`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },

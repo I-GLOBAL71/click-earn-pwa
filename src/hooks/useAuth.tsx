@@ -31,11 +31,15 @@ export const useAuth = () => {
       if (u) {
         try {
           const token = await u.getIdToken();
-          const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
-          const res = await fetch(`${apiBase}/api/admin/is-admin`, { headers: { Authorization: `Bearer ${token}` } });
-          if (res.ok) {
-            const data = await res.json();
-            setIsAdmin(Boolean(data?.isAdmin));
+          const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
+          if (apiBase) {
+            const res = await fetch(`${apiBase}/api/admin/is-admin`, { headers: { Authorization: `Bearer ${token}` } });
+            if (res.ok) {
+              const data = await res.json();
+              setIsAdmin(Boolean(data?.isAdmin));
+            }
+          } else {
+            setIsAdmin(false);
           }
         } catch {
           setIsAdmin(false);

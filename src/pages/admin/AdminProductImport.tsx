@@ -190,7 +190,7 @@ export const AdminProductImport = () => {
 
       const auth = getAuth();
       const token = await auth.currentUser?.getIdToken();
-      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
       const resp = await fetch(`${apiBase}/api/admin/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },

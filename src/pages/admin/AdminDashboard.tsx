@@ -27,7 +27,7 @@ export const AdminDashboard = () => {
   const loadStats = async () => {
     const auth = getAuth();
     const token = await auth.currentUser?.getIdToken();
-    const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+    const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
     const res = await fetch(`${apiBase}/api/admin/stats`, {
       headers: { Authorization: token ? `Bearer ${token}` : '' },
     });
