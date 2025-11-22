@@ -6,12 +6,14 @@ const allowHeaders = "authorization, x-client-info, apikey, content-type, x-forw
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Headers", allowHeaders);
+    res.setHeader("Access-Control-Allow-Headers", allowHeaders + ", Authorization, Content-Type");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     return res.status(204).end();
   }
 
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", allowHeaders);
+  res.setHeader("Access-Control-Allow-Headers", allowHeaders + ", Authorization, Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
 
   try {
     const dbUrl = process.env.NEON_DATABASE_URL || "";

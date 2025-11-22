@@ -27,12 +27,14 @@ async function ensureAdmin(req: VercelRequest) {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Headers", allowHeaders);
+    res.setHeader("Access-Control-Allow-Headers", allowHeaders + ", Authorization, Content-Type");
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
     return res.status(204).end();
   }
 
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", allowHeaders);
+  res.setHeader("Access-Control-Allow-Headers", allowHeaders + ", Authorization, Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
 
   try {
     await ensureAdmin(req);

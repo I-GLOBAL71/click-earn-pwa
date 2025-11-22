@@ -1,103 +1,140 @@
 import type { VercelRequest, VercelResponse } from "vercel";
+import { neon } from "@neondatabase/serverless";
 
 const allowHeaders = "authorization, x-client-info, apikey, content-type";
+
+function textBetween(html: string, regex: RegExp) {
+  const m = html.match(regex);
+  return m && m[1] ? m[1] : "";
+}
+
+function sanitizeText(s: string) {
+  return String(s || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function extractImages(html: string) {
+  const urls = new Set<string>();
+  const og = textBetween(html, /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+  if (og) urls.add(og);
+  const re = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    const u = m[1];
+    if (u && /^https?:\/\//i.test(u)) urls.add(u);
+  }
+  return Array.from(urls);
+}
+
+function extractPrice(html: string) {
+  const candidates = [
+    /"minPrice"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)/i,
+    /"maxPrice"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)/i,
+    /"price"\s*[:=]\s*"?([0-9]+(?:\.[0-9]+)?)/i,
+    /data-price\s*=\s*"([0-9]+(?:\.[0-9]+)?)"/i,
+    /\$\s*([0-9]+(?:\.[0-9]+)?)/,
+  ];
+  for (const r of candidates) {
+    const p = textBetween(html, r);
+    if (p) return p;
+  }
+  return "";
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Headers", allowHeaders);
+    res.setHeader("Access-Control-Allow-Headers", allowHeaders + ", Authorization, Content-Type");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     return res.status(204).end();
   }
 
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", allowHeaders);
+  res.setHeader("Access-Control-Allow-Headers", allowHeaders + ", Authorization, Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
 
   try {
+    if (req.method !== "POST") return res.status(405).json({ error: "Méthode non autorisée" });
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-    const url = body?.url;
-    if (!url) return res.status(400).json({ error: "URL manquante" });
+    const url = String(body?.url || "").trim();
+    if (!url) return res.status(400).json({ error: "URL requise" });
+    const isAlibaba = /alibaba\.com|aliexpress\.com/i.test(url);
+    if (!isAlibaba) return res.status(400).json({ error: "URL non supportée" });
 
-    const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" } });
-    if (!response.ok) return res.status(response.status).json({ error: `Erreur HTTP: ${response.status}` });
-    const html = await response.text();
+    const resp = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+    });
+    if (!resp.ok) return res.status(400).json({ error: "Échec de récupération de la page" });
+    const html = await resp.text();
 
-    const extractData: { title: string; description: string; price: string; mainImage: string; images: string[] } = {
-      title: "",
-      description: "",
-      price: "",
-      mainImage: "",
-      images: [],
-    };
+    const title = sanitizeText(
+      textBetween(html, /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
+        textBetween(html, /<title[^>]*>([^<]+)<\/title>/i)
+    );
+    const description = sanitizeText(
+      textBetween(html, /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)
+    );
+    const mainImage = textBetween(html, /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+    const images = extractImages(html);
+    const price = extractPrice(html);
 
-    const titleMatch = html.match(/<h1[^>]*class="[^"]*product-title[^"]*"[^>]*>([^<]+)<\/h1>/i) || html.match(/<title>([^<]+)<\/title>/i);
-    if (titleMatch) extractData.title = titleMatch[1].trim().replace(/&quot;/g, '"').replace(/&amp;/g, '&');
-
-    const descMatch = html.match(/<div[^>]*class="[^"]*description[^"]*"[^>]*>([^<]+)<\/div>/i) || html.match(/<meta[^>]*name="description"[^>]*content="([^"]+)"/i);
-    if (descMatch) extractData.description = descMatch[1].trim().replace(/&quot;/g, '"').replace(/&amp;/g, '&');
-
-    const priceMatch = html.match(/price["\s:]+([0-9.,]+)/i) || html.match(/\$\s*([0-9.,]+)/i);
-    if (priceMatch) {
-      const priceStr = priceMatch[1].replace(/,/g, "");
-      const priceUSD = parseFloat(priceStr);
-      extractData.price = Math.round(priceUSD * 600).toString();
-    }
-
-    const images = new Set<string>();
-    const jsonDataPatterns = [
-      /window\.__INITIAL_DATA__\s*=\s*({.*?});/s,
-      /"imageModule"\s*:\s*({.*?})/s,
-      /"imageList"\s*:\s*(\[.*?\])/s,
-      /"productImage"\s*:\s*({.*?})/s,
-    ];
-    for (const pattern of jsonDataPatterns) {
-      const match = html.match(pattern);
-      if (match) {
-        try {
-          const jsonData = JSON.parse(match[1]);
-          const extractImagesFromObj = (obj: any) => {
-            if (!obj) return;
-            if (typeof obj === "string" && obj.includes("alicdn.com") && /\.(jpg|jpeg|png)/.test(obj)) images.add(obj.split('?')[0]);
-            else if (Array.isArray(obj)) obj.forEach(extractImagesFromObj);
-            else if (typeof obj === "object") Object.values(obj).forEach(extractImagesFromObj);
-          };
-          extractImagesFromObj(jsonData);
-        } catch {}
+    try {
+      const dbUrl = process.env.NEON_DATABASE_URL || "";
+      const sql = dbUrl ? neon(dbUrl) : null;
+      let geminiEnabled = false;
+      let geminiModel = "gemini-1.5-flash";
+      let geminiTemperature = 0.2;
+      let apiKey = process.env.GEMINI_API_KEY || "";
+      if (sql) {
+        const s = await sql<{ key: string; value: string }[]>`select key, value from system_settings where key in ('gemini_enabled','gemini_model','gemini_temperature','gemini_api_key')`;
+        const m = new Map(s.map(r => [r.key, r.value]));
+        geminiEnabled = String(m.get('gemini_enabled') || "false").toLowerCase() === 'true';
+        geminiModel = String(m.get('gemini_model') || geminiModel);
+        geminiTemperature = Number(m.get('gemini_temperature') || geminiTemperature);
+        apiKey = String(m.get('gemini_api_key') || apiKey);
       }
-    }
-    if (images.size === 0) {
-      const imageRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
-      let match: RegExpExecArray | null;
-      while ((match = imageRegex.exec(html)) !== null) {
-        const imgUrl = match[1];
-        if (!imgUrl.includes("alicdn.com")) continue;
-        if (!/\.(jpg|jpeg|png)($|\?)/i.test(imgUrl)) continue;
-        if (/_\d+x\d+\./i.test(imgUrl)) continue;
-        const excludePatterns = ["logo", "icon", "banner", "button", "payment", "O1CN01"];
-        if (excludePatterns.some((p) => imgUrl.toLowerCase().includes(p))) continue;
-        images.add(imgUrl.split('?')[0]);
+
+      if (geminiEnabled && apiKey) {
+        const prompt = `Tu es un extracteur de données produit. À partir des métadonnées suivantes et de l'URL, retourne un JSON strict avec les clés: title, description, price (chaîne), mainImage (URL), images (liste d'URL). Ne retourne que du JSON.
+URL: ${url}
+Title: ${title}
+Description: ${description}
+MainImage: ${mainImage}
+Images: ${images.slice(0, 20).join(', ')}
+Prix détecté: ${price}`;
+        const respAi = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: prompt }]}],
+            generationConfig: { temperature: geminiTemperature, maxOutputTokens: 1024 },
+          })
+        });
+        if (respAi.ok) {
+          const out = await respAi.json();
+          const text = String(out?.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
+          try {
+            const parsed = JSON.parse(text);
+            const merged = {
+              title: parsed.title || title,
+              description: parsed.description || description,
+              price: parsed.price || price,
+              mainImage: parsed.mainImage || mainImage,
+              images: Array.isArray(parsed.images) && parsed.images.length ? parsed.images : images,
+            };
+            return res.status(200).json(merged);
+          } catch (_) {
+          }
+        }
       }
-    }
+    } catch (_) {}
 
-    const jsonLdMatch = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>([^<]+)<\/script>/i);
-    if (jsonLdMatch) {
-      try {
-        const jsonData = JSON.parse(jsonLdMatch[1]);
-        const img = jsonData.image;
-        if (Array.isArray(img)) img.forEach((u: string) => images.add(String(u).split('?')[0]));
-        else if (img) images.add(String(img).split('?')[0]);
-      } catch {}
-    }
-
-    const imageArray = Array.from(images);
-    if (imageArray.length > 0) {
-      extractData.mainImage = imageArray[0];
-      extractData.images = imageArray;
-    }
-
-    if (!extractData.title && !extractData.description) return res.status(400).json({ error: "Impossible d'extraire les données" });
-    return res.status(200).json(extractData);
+    return res.status(200).json({ title, description, price, mainImage, images });
   } catch (e: any) {
     const msg = typeof e?.message === "string" ? e.message : "Erreur inconnue";
-    return res.status(500).json({ error: msg });
+    return res.status(400).json({ error: msg });
   }
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAuth } from "firebase/auth";
 import { Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 export const AdminSettings = () => {
   const { toast } = useToast();
@@ -49,6 +50,63 @@ export const AdminSettings = () => {
     onError: (err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
       toast({ title: "Erreur", description: message || "Impossible d'attribuer le rôle", variant: 'destructive' });
+    }
+  });
+
+  const [geminiEnabled, setGeminiEnabled] = useState(false);
+  const [geminiModel, setGeminiModel] = useState("gemini-1.5-flash");
+  const [geminiTemperature, setGeminiTemperature] = useState("0.2");
+  const [geminiApiKey, setGeminiApiKey] = useState("");
+  const [geminiMasked, setGeminiMasked] = useState("");
+
+  const { data: aiSettings, isLoading: aiLoading } = useQuery({
+    queryKey: ["ai-settings"],
+    queryFn: async () => {
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
+      const res = await fetch(`${apiBase}/api/ai-settings`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+  });
+
+  useEffect(() => {
+    if (aiSettings) {
+      setGeminiEnabled(String(aiSettings.gemini_enabled || "false").toLowerCase() === 'true');
+      setGeminiModel(aiSettings.gemini_model || "gemini-1.5-flash");
+      setGeminiTemperature(aiSettings.gemini_temperature || "0.2");
+      setGeminiMasked(aiSettings.gemini_api_key_masked || "");
+    }
+  }, [aiSettings]);
+
+  const saveAiMutation = useMutation({
+    mutationFn: async () => {
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
+      const payload: any = {
+        gemini_enabled: String(geminiEnabled),
+        gemini_model: geminiModel,
+        gemini_temperature: geminiTemperature,
+      };
+      if (geminiApiKey.trim()) payload.gemini_api_key = geminiApiKey.trim();
+      const res = await fetch(`${apiBase}/api/ai-settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(await res.text());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ai-settings"] });
+      setGeminiApiKey("");
+      toast({ title: "Paramètres IA enregistrés" });
+    },
+    onError: async (e: any) => {
+      toast({ title: "Erreur", description: (await e?.message) || "Impossible d'enregistrer", variant: "destructive" });
     }
   });
 
@@ -141,6 +199,52 @@ export const AdminSettings = () => {
                 )}
               </div>
             )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle>Configuration IA (Gemini)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex items-center gap-3">
+              <Switch checked={geminiEnabled} onCheckedChange={(v) => setGeminiEnabled(v)} />
+              <div>
+                <p className="font-medium">Activer Gemini</p>
+                <p className="text-sm text-muted-foreground">Utiliser Gemini pour extraction et réécriture</p>
+              </div>
+            </div>
+            <div>
+              <Label>Modèle</Label>
+              <Select value={geminiModel} onValueChange={setGeminiModel}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gemini-1.5-flash">gemini-1.5-flash (gratuit)</SelectItem>
+                  <SelectItem value="gemini-1.5-pro">gemini-1.5-pro</SelectItem>
+                  <SelectItem value="gemini-1.0-pro">gemini-1.0-pro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Température</Label>
+              <Input value={geminiTemperature} onChange={(e) => setGeminiTemperature(e.target.value)} placeholder="0.2" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Clé API Gemini</Label>
+              <Input type="password" value={geminiApiKey} onChange={(e) => setGeminiApiKey(e.target.value)} placeholder={geminiMasked ? `**** ${geminiMasked}` : "sk-..."} />
+              <p className="text-xs text-muted-foreground mt-1">Saisir pour mettre à jour. La valeur actuelle n'est pas affichée.</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={() => saveAiMutation.mutate()} disabled={saveAiMutation.isPending || aiLoading}>
+              {saveAiMutation.isPending ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enregistrement...</>) : ("Enregistrer")}
+            </Button>
           </div>
         </CardContent>
       </Card>

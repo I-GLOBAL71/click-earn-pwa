@@ -28,35 +28,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Headers", allowHeaders + ", Authorization, Content-Type");
-    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
     return res.status(204).end();
   }
 
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", allowHeaders + ", Authorization, Content-Type");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
 
   try {
-    await ensureAdmin(req);
     const dbUrl = process.env.NEON_DATABASE_URL || "";
     if (!dbUrl) return res.status(500).json({ error: "NEON_DATABASE_URL requis" });
     const sql = neon(dbUrl);
+    await sql`create table if not exists system_settings (key text primary key, value text, updated_at timestamp default now())`;
 
-    const [{ count: totalAmbassadors }] = await sql<{ count: number }[]>`select count(*)::int as count from user_roles where role = 'ambassador'`;
-    const [{ count: totalProducts }] = await sql<{ count: number }[]>`select count(*)::int as count from products`;
-    const [{ total_revenue }] = await sql<{ total_revenue: number | null }[]>`select coalesce(sum(amount), 0) as total_revenue from commissions where status = 'approved'`;
-    const [{ pending_payouts }] = await sql<{ pending_payouts: number | null }[]>`select coalesce(sum(amount), 0) as pending_payouts from payouts where status = 'pending'`;
-    const [{ count: totalOrders }] = await sql<{ count: number }[]>`select count(*)::int as count from orders`;
-    const [{ total_clicks }] = await sql<{ total_clicks: number | null }[]>`select coalesce(sum(clicks), 0) as total_clicks from referral_links`;
+    if (req.method === "GET") {
+      await ensureAdmin(req);
+      const rows = await sql<{ key: string; value: string | null }[]>`select key, value from system_settings where key in ('gemini_enabled','gemini_model','gemini_temperature','gemini_api_key')`;
+      const map = new Map(rows.map(r => [r.key, r.value || ""]));
+      const maskedKey = String(map.get('gemini_api_key') || "");
+      const mask = maskedKey ? `${maskedKey.slice(0, 4)}...${maskedKey.slice(-4)}` : "";
+      return res.status(200).json({
+        gemini_enabled: map.get('gemini_enabled') || "false",
+        gemini_model: map.get('gemini_model') || "gemini-1.5-flash",
+        gemini_temperature: map.get('gemini_temperature') || "0.2",
+        gemini_api_key_masked: mask,
+      });
+    }
 
-    return res.status(200).json({
-      totalAmbassadors: totalAmbassadors || 0,
-      totalProducts: totalProducts || 0,
-      totalRevenue: Number(total_revenue || 0),
-      pendingPayouts: Number(pending_payouts || 0),
-      totalOrders: totalOrders || 0,
-      totalClicks: Number(total_clicks || 0),
-    });
+    if (req.method === "PATCH" || req.method === "POST") {
+      await ensureAdmin(req);
+      const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
+      const updates: Record<string, string | undefined> = body || {};
+      const allowed = new Set(['gemini_enabled','gemini_model','gemini_temperature','gemini_api_key']);
+      const entries = Object.entries(updates).filter(([k,v]) => allowed.has(k) && v !== undefined);
+      if (entries.length === 0) return res.status(400).json({ error: "Aucune mise à jour" });
+      for (const [k, v] of entries) {
+        await sql`insert into system_settings (key, value, updated_at) values (${k}, ${String(v)}, ${new Date().toISOString()}) on conflict (key) do update set value = excluded.value, updated_at = excluded.updated_at`;
+      }
+      return res.status(200).json({ success: true });
+    }
+
+    return res.status(405).json({ error: "Méthode non autorisée" });
   } catch (e: any) {
     const msg = typeof e?.message === "string" ? e.message : "Erreur inconnue";
     return res.status(400).json({ error: msg });

@@ -53,7 +53,8 @@ export const AdminProductImport = () => {
 
     setLoading(true);
     try {
-      const resp = await fetch('/api/import-alibaba-product', {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
+      const resp = await fetch(`${apiBase}/api/import-alibaba-product`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: alibabaUrl })
@@ -116,7 +117,8 @@ export const AdminProductImport = () => {
 
     setRewriting(true);
     try {
-      const resp = await fetch('/api/rewrite-product', {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
+      const resp = await fetch(`${apiBase}/api/rewrite-product`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
