@@ -20,11 +20,11 @@ const Products = () => {
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
       const resp = await fetch(`${apiBase}/api/products`);
-      const json = await resp.json();
-      if (!resp.ok) throw new Error(json?.error || 'Erreur de chargement des produits');
-      return json;
+      const json = await resp.json().catch(() => null);
+      if (!resp.ok) return [];
+      return json || [];
     }
   });
 
@@ -37,7 +37,7 @@ const Products = () => {
         throw new Error('Tu dois être connecté pour générer un lien');
       }
       const token = await current.getIdToken();
-      const apiBase = import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
       const resp = await fetch(`${apiBase}/api/generate-referral-link`, {
         method: 'POST',
         headers: {

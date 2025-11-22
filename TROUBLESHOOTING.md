@@ -12,25 +12,21 @@ ERROR: schema "auth" does not exist (SQLSTATE 3F000)
 ```
 
 ### Cause
-Vous utilisez la mauvaise migration. La migration standard utilise Supabase Auth (qui crée le schema `auth`), mais vous utilisez **Firebase Auth**.
+Vous utilisez un script de migration non compatible (il référence le schema `auth`), alors que vous utilisez **Firebase Auth**.
 
 ### Solution ✅
 
 **Utilisez la bonne migration:**
 
-1. **Supprimez:** `20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47.sql`
-   - Cette migration est pour Supabase Auth
-   - Elle génère l'erreur "schema auth does not exist"
-
-2. **Utilisez:** `20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47_NEON.sql` ✅
-   - Cette migration est pour Firebase Auth + Neon
-   - Pas de dépendance Supabase
-   - Crée table `users` avec Firebase UIDs
+1. **Supprimez le script non compatible** (référence au schema `auth`)
+2. **Utilisez un script Neon/Firebase** ✅
+   - Pas de dépendance sur un schema `auth`
+   - Crée `users` avec UID Firebase en `TEXT`
 
 **Étapes:**
 1. Allez à https://console.neon.tech
 2. SQL Editor
-3. Ouvrez `supabase/migrations/20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47_NEON.sql`
+3. Ouvrez votre script de migration Neon compatible
 4. Copiez TOUT
 5. Collez dans Neon SQL Editor
 6. Exécutez
@@ -53,7 +49,7 @@ La migration a été exécutée partiellement. Le type `app_role` existe déjà,
 ### Solution 1: Exécuter à nouveau la migration (RECOMMANDÉ)
 La migration a été mise à jour pour gérer ce cas:
 1. Allez à Neon SQL Editor
-2. Exécutez à nouveau `supabase/migrations/20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47.sql`
+2. Exécutez à nouveau votre script Neon compatible
 3. Cette fois ça devrait fonctionner! ✅
 
 Pourquoi? La nouvelle version inclut `IF NOT EXISTS` et gère les doublons.
@@ -103,7 +99,7 @@ Le fichier `vercel.json` est mal configuré ou manquant.
 
 ### Symptôme
 ```
-Error: Cannot find module '@supabase/supabase-js'
+Error: Cannot find module 'some-module'
 Module not found
 ```
 

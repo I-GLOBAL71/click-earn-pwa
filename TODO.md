@@ -13,8 +13,7 @@
 - [ ] Update `src/App.tsx` to include Firebase Auth provider and AuthModal
 
 ## Phase 3: Update Database Queries
-- [ ] Update `src/integrations/supabase/types.ts` to reflect Neon schema (if needed)
-- [ ] Update any components/pages that query Supabase to use Neon client
+- [ ] Supprimer les références legacy et utiliser Neon partout
 
 ## Phase 4: Update APIs
 - [ ] Update `api/generate-referral-link.ts` to use Firebase token verification and Neon
@@ -26,8 +25,8 @@
 - [ ] Run Neon migration manually using the provided PSQL command
 - [ ] Test Firebase auth (Google and magic link)
 - [ ] Test Neon DB connections
-- [ ] Remove Supabase dependencies and files
-- [ ] Update README and docs
+- [ ] Nettoyer dépendances legacy et fichiers
+- [ ] Mettre à jour README et docs
 
 ## Phase 6: Deployment
 - [ ] Update Vercel config if needed

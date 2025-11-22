@@ -29,10 +29,10 @@ Bienvenue! Ce document explique comment migrer votre application vers la nouvell
 
 | Composant | Avant | Après |
 |-----------|-------|-------|
-| **Frontend** | Supabase | Firebase Hosting |
-| **Backend** | Supabase Functions | Vercel Serverless Functions |
-| **Database** | Supabase (PostgreSQL) | Neon (PostgreSQL) |
-| **Auth** | Supabase Auth | Firebase Auth |
+| **Frontend** | Legacy | Firebase Hosting |
+| **Backend** | Legacy API | Vercel Serverless Functions |
+| **Database** | Legacy (PostgreSQL) | Neon (PostgreSQL) |
+| **Auth** | Legacy | Firebase Auth |
 | **Déploiement** | Manual | GitHub Actions (Auto) |
 
 ## ✅ Avantages de cette Migration
@@ -56,7 +56,7 @@ Bienvenue! Ce document explique comment migrer votre application vers la nouvell
 - ✅ Autoscaling automatique
 - ✅ Backups automatiques
 - ✅ Point-in-time recovery
-- ✅ Meilleur prix que Supabase
+- ✅ Coûts optimisés
 
 ## 📚 Documentation Disponible
 
@@ -231,7 +231,7 @@ Une fois la migration complétée:
 ### Q: Est-ce que c'est gratuit?
 **A:** Oui pour commencer! Tous les services offrent un tier gratuit généreux.
 
-### Q: Puis-je revenir à Supabase?
+### Q: Puis-je revenir à l'ancienne stack?
 **A:** Oui, les données sont en PostgreSQL standard. Vous pouvez exporter/importer facilement.
 
 ### Q: Combien ça coûte en production?

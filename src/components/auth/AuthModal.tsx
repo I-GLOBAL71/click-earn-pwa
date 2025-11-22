@@ -59,23 +59,10 @@ export const AuthModal = ({ isOpen, onClose, askEmailForLink = false, onSignedIn
       const auth = getAuth();
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
-
-      const isMobileOrStandalone = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-
-      if (isMobileOrStandalone) {
-        await signInWithRedirect(auth, provider);
-        return;
-      }
-
-      try {
-        await signInWithPopup(auth, provider);
-        toast.success("Connexion Google réussie");
-        onSignedIn && onSignedIn();
-        onClose();
-      } catch (err) {
-        await signInWithRedirect(auth, provider);
-        return;
-      }
+      await signInWithPopup(auth, provider);
+      toast.success("Connexion Google réussie");
+      onSignedIn && onSignedIn();
+      onClose();
     } catch (e: any) {
       const code = String(e?.code || "");
       if (code === "auth/operation-not-allowed") toast.error("Activez Google dans Firebase Authentication");
@@ -119,13 +106,16 @@ export const AuthModal = ({ isOpen, onClose, askEmailForLink = false, onSignedIn
         toast.error("Lien invalide");
         return;
       }
-      await signInWithEmailLink(auth, email || window.localStorage.getItem("emailForSignIn") || "", href);
+      const storedEmail = window.localStorage.getItem("emailForSignIn") || "";
+      await signInWithEmailLink(auth, email || storedEmail, href);
       window.localStorage.removeItem("emailForSignIn");
       toast.success("Connexion par lien magique réussie");
       onSignedIn && onSignedIn();
       onClose();
     } catch (e: any) {
-      toast.error(e?.message || "Erreur de validation du lien magique");
+      const code = String(e?.code || "");
+      if (code === "auth/invalid-email") toast.error("Email invalide");
+      else toast.error(e?.message || "Erreur de validation du lien magique");
     } finally {
       setValidating(false);
     }

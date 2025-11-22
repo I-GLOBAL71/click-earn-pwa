@@ -151,7 +151,7 @@ REM Adapté pour Windows CMD
 
 ## 🔧 FICHIER MIGRÉ/CORRIGÉ (1 fichier)
 
-### **supabase/migrations/20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47.sql** ✅ CORRIGÉ
+### **Migration initiale (script)** ✅ CORRIGÉ
 
 **Changements apportés:**
 
@@ -229,7 +229,7 @@ REM Adapté pour Windows CMD
 
 ### Neon Setup
 - NEON_SETUP.md
-- supabase/migrations/20251105164030_...sql (corrigé)
+- Script de migration Neon (corrigé)
 
 ### Problèmes
 - TROUBLESHOOTING.md
@@ -270,10 +270,10 @@ REM Adapté pour Windows CMD
 ✅ deploy.bat                   (Script Windows)
 ```
 
-### Dans supabase/migrations/:
+### Migrations:
 ```
-✅ 20251105164030_...sql        (Corrigée)
-✅ 20251114143445_...sql        (Inchangée)
+✅ Script initial (corrigé)
+✅ Script complémentaire (si nécessaire)
 ```
 
 ---
@@ -294,7 +294,7 @@ Migration exécutée avec succès ✅
 ```
 
 ### 📁 Fichiers Affectés:
-1. **supabase/migrations/20251105164030_...sql** - Corrigée
+1. **Script de migration initial** - Corrigé
 2. **TROUBLESHOOTING.md** - Erreur ajoutée
 3. **NEON_SETUP.md** - Nouveau guide créé
 4. **DOCS_INDEX.md** - Mise à jour

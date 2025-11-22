@@ -61,7 +61,7 @@ Backend
 Database
 ┌─────────────────────────────────┐
 │   NEON (PostgreSQL)             │
-│   - Setup: supabase/migrations/ │
+│   - Setup: migrations Neon │
 │   - Tables: 8 tables créées     │
 │   - Hosting: Neon console       │
 └─────────────────────────────────┘
@@ -156,9 +156,8 @@ click-earn-pwa/
 │   ├── generate-referral-link.ts
 │   ├── import-alibaba-product.ts
 │   └── rewrite-product.ts
-├── supabase/                    # Migrations SQL
-│   ├── migrations/              # ✅ Pour Neon
-│   └── functions/               # Legacy (ignore)
+├── migrations/                  # Migrations SQL (Neon)
+│   └── scripts/                 # Scripts complémentaires
 ├── public/                      # Assets statiques
 ├── vercel.json                  # Config Vercel ✅ CORRIGÉ
 ├── firebase.json                # Config Firebase

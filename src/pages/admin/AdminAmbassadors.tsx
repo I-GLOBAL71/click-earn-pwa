@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getAuth } from "firebase/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,66 +29,20 @@ export const AdminAmbassadors = () => {
 
   const loadAmbassadors = async () => {
     try {
-      // Get all users with ambassador role
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'ambassador');
-
-      if (roleError) throw roleError;
-
-      if (!roleData || roleData.length === 0) {
-        setAmbassadors([]);
-        setLoading(false);
-        return;
-      }
-
-      const userIds = roleData.map(r => r.user_id);
-
-      // Get profiles for these users
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('id', userIds);
-
-      if (profilesError) throw profilesError;
-
-      // Get commissions stats
-      const { data: commissionsData } = await supabase
-        .from('commissions')
-        .select('user_id, amount')
-        .in('user_id', userIds);
-
-      // Get clicks stats
-      const { data: linksData } = await supabase
-        .from('referral_links')
-        .select('user_id, clicks')
-        .in('user_id', userIds);
-
-      // Combine data
-      const ambassadorsData = profiles?.map(profile => {
-        const userCommissions = commissionsData?.filter(c => c.user_id === profile.id) || [];
-        const totalCommissions = userCommissions.reduce((sum, c) => sum + Number(c.amount), 0);
-        
-        const userLinks = linksData?.filter(l => l.user_id === profile.id) || [];
-        const totalClicks = userLinks.reduce((sum, l) => sum + (l.clicks || 0), 0);
-
-        return {
-          id: profile.id,
-          full_name: profile.full_name,
-          email: '', // We'll need to fetch this separately or store in profile
-          phone: profile.phone,
-          created_at: profile.created_at,
-          total_commissions: totalCommissions,
-          total_clicks: totalClicks,
-        };
-      }) || [];
-
-      setAmbassadors(ambassadorsData);
-    } catch (error: any) {
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${apiBase}/api/admin/ambassadors`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setAmbassadors(data || []);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       toast({
         title: "Erreur",
-        description: error.message,
+        description: message,
         variant: "destructive",
       });
     } finally {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getAuth } from "firebase/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,17 +64,20 @@ export const AdminProducts = () => {
 
   const loadProducts = async () => {
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${apiBase}/api/admin/products`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
       setProducts(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       toast({
         title: "Erreur",
-        description: error.message,
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -98,20 +101,24 @@ export const AdminProducts = () => {
         is_active: true,
       };
 
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
       if (editingProduct) {
-        const { error } = await supabase
-          .from('products')
-          .update(productData)
-          .eq('id', editingProduct.id);
-
-        if (error) throw error;
+        const res = await fetch(`${apiBase}/api/admin/products`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+          body: JSON.stringify({ id: editingProduct.id, ...productData }),
+        });
+        if (!res.ok) throw new Error(await res.text());
         toast({ title: "Produit mis à jour avec succès" });
       } else {
-        const { error } = await supabase
-          .from('products')
-          .insert([productData]);
-
-        if (error) throw error;
+        const res = await fetch(`${apiBase}/api/admin/products`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+          body: JSON.stringify(productData),
+        });
+        if (!res.ok) throw new Error(await res.text());
         toast({ title: "Produit créé avec succès" });
       }
 
@@ -119,10 +126,11 @@ export const AdminProducts = () => {
       setEditingProduct(null);
       resetForm();
       loadProducts();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       toast({
         title: "Erreur",
-        description: error.message,
+        description: message,
         variant: "destructive",
       });
     }
@@ -132,12 +140,15 @@ export const AdminProducts = () => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) return;
 
     try {
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${apiBase}/api/admin/products`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error(await res.text());
       toast({ title: "Produit supprimé avec succès" });
       loadProducts();
     } catch (error: any) {

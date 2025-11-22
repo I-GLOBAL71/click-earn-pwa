@@ -9,14 +9,14 @@ ERROR: type "app_role" already exists (SQLSTATE 42710)
 ```
 
 ### Cause
-La migration Supabase n'était pas adaptée à Neon. Elle tentait de créer des objets qui existaient déjà partiellement.
+Un script de migration non compatible Neon a été utilisé. Il tentait de créer des objets déjà présents partiellement.
 
 ---
 
 ## ✅ SOLUTION APPLIQUÉE
 
 ### 1️⃣ Migration Corrigée
-Le fichier `supabase/migrations/20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47.sql` a été mise à jour avec:
+Le script de migration a été mis à jour avec:
 
 - ✅ `CREATE TYPE ... IF NOT EXISTS` → `DO $$ EXCEPTION` pour gérer les doublons
 - ✅ `CREATE TABLE IF NOT EXISTS` → Crée seulement si inexistant
@@ -41,7 +41,7 @@ Le fichier `supabase/migrations/20251105164030_032e12af-80a2-44e3-b46d-954425c4f
 1. Allez à https://console.neon.tech
 2. Sélectionnez votre projet
 3. Allez à "SQL Editor"
-4. Ouvrez le fichier: `supabase/migrations/20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47.sql`
+4. Ouvrez votre script de migration Neon
 5. Copiez **TOUT** le contenu
 6. Collez-le dans l'éditeur SQL de Neon
 7. Cliquez "Execute"
@@ -70,7 +70,7 @@ Vous devriez voir 8 tables:
 
 ### Étape 3: Exécuter la deuxième migration
 
-1. Ouvrez le fichier: `supabase/migrations/20251114143445_b264331f-5951-4b6c-aa00-37c3d904c9ad.sql`
+1. Ouvrez le script de migration complémentaire Neon (si nécessaire)
 2. Copiez tout le contenu
 3. Collez-le dans Neon SQL Editor
 4. Cliquez "Execute"
@@ -108,7 +108,7 @@ Une fois Neon prêt:
    - Table mise à jour
 
 4. **Migration SQL** ⭐ CORRIGÉE
-   - `supabase/migrations/20251105164030_...sql`
+   - Script de migration Neon
    - Maintenant idempotente (peut être exécutée plusieurs fois)
    - Gère tous les cas de doublons
 

@@ -16,7 +16,7 @@ const ReferralRedirect = () => {
         return;
       }
       try {
-        const apiBase = import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
+        const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
         await fetch(`${apiBase}/api/track-click`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

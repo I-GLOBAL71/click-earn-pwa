@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, Sparkles, X, Star, Trash2, ArrowLeft } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { getAuth } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import {
   Select,
@@ -93,10 +93,10 @@ export const AdminProductImport = () => {
         title: "Extraction réussie",
         description: "Les données du produit ont été extraites",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Erreur d'extraction",
-        description: error.message || "Impossible d'extraire les données",
+        description: (error instanceof Error ? error.message : String(error)) || "Impossible d'extraire les données",
         variant: "destructive",
       });
     } finally {
@@ -140,10 +140,10 @@ export const AdminProductImport = () => {
         title: "Réécriture réussie",
         description: "Le titre et la description ont été améliorés par l'IA",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Erreur de réécriture",
-        description: error.message || "Impossible de réécrire la description",
+        description: (error instanceof Error ? error.message : String(error)) || "Impossible de réécrire la description",
         variant: "destructive",
       });
     } finally {
@@ -188,11 +188,15 @@ export const AdminProductImport = () => {
         is_active: true,
       };
 
-      const { error } = await supabase
-        .from('products')
-        .insert([productData]);
-
-      if (error) throw error;
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+      const resp = await fetch(`${apiBase}/api/admin/products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+        body: JSON.stringify(productData),
+      });
+      if (!resp.ok) throw new Error(await resp.text());
 
       toast({
         title: "Produit créé",
@@ -200,10 +204,10 @@ export const AdminProductImport = () => {
       });
 
       navigate('/admin/products');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Erreur",
-        description: error.message,
+        description: (error instanceof Error ? error.message : String(error)),
         variant: "destructive",
       });
     }

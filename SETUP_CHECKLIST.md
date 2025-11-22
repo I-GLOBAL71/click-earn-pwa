@@ -41,11 +41,11 @@ npm install --legacy-peer-deps
 
 ### Étape 3: Créer les tables
 1. Dans Neon, cliquez "SQL Editor"
-2. Ouvrez le fichier: `supabase/migrations/20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47.sql`
+2. Ouvrez votre script de migration Neon (compatible Firebase)
 3. Copiez tout le contenu SQL
 4. Collez-le dans l'éditeur Neon
 5. Cliquez "Execute"
-6. Répétez avec le fichier: `supabase/migrations/20251114143445_b264331f-5951-4b6c-aa00-37c3d904c9ad.sql`
+6. Répétez avec les scripts complémentaires si nécessaire
 
 ✅ **Résultat:** Votre base de données est prête!
 

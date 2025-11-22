@@ -1,34 +1,27 @@
 # 🔥 Setup Neon avec Firebase Auth
 
-Guide pour utiliser Neon PostgreSQL avec **Firebase Auth** au lieu de Supabase Auth.
+Guide pour utiliser Neon PostgreSQL avec **Firebase Auth**.
 
 ---
 
-## 🎯 POURQUOI DEUX MIGRATIONS?
+## 🎯 Migration recommandée
 
-### Migration 1: `20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47.sql`
-- ❌ Utilise `auth.users` (Supabase Auth)
-- ❌ Référence `auth` schema
-- ❌ Génère l'erreur: "schema 'auth' does not exist"
-
-### Migration 2: `20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47_NEON.sql` ✅
-- ✅ Crée table `users` pour Firebase
-- ✅ Firebase UID stocké comme TEXT (pas UUID)
-- ✅ Pas de dépendance `auth` schema
-- ✅ **UTILISEZ CELLE-CI** pour Neon + Firebase
+- Créez une table `users` dans le schema `public`
+- Stockez l'UID Firebase en `TEXT` (pas UUID)
+- N'utilisez pas le schema `auth`
 
 ---
 
 ## 🚀 INSTALLATION RAPIDE
 
-### Étape 1: Choisir la Bonne Migration
+### Étape 1: Choisir une migration compatible Neon/Firebase
 ```
-❌ N'UTILISEZ PAS: 20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47.sql
-✅ UTILISEZ: 20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47_NEON.sql
+✅ Utilisez un script qui crée `public.users` avec id TEXT
+✅ Évitez toute référence au schema `auth`
 ```
 
 ### Étape 2: Copier la Migration
-1. Ouvrez: `supabase/migrations/20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47_NEON.sql`
+1. Ouvrez votre script de migration Neon
 2. Copiez **TOUT** le contenu
 
 ### Étape 3: Exécuter sur Neon
@@ -139,28 +132,18 @@ if (userId) {
 
 ---
 
-## 📊 COMPARAISON: SUPABASE vs FIREBASE + NEON
+## 📊 Comparaison: Ancienne vs Nouvelle
 
-| Aspect | Supabase | Firebase + Neon |
-|--------|----------|-----------------|
-| Auth | Supabase Auth | Firebase Auth |
-| Database | Supabase (PostgreSQL) | Neon (PostgreSQL) |
+| Aspect | Ancienne stack | Nouvelle stack |
+|--------|-----------------|----------------|
+| Auth | Legacy | Firebase Auth |
+| Database | Legacy PostgreSQL | Neon (PostgreSQL) |
 | User ID | UUID | TEXT (Firebase UID) |
-| Schema | auth.users | public.users |
-| Coût | Plus cher | Plus économique |
-| Contrôle | Moins | Plus de contrôle |
+| Schema | auth.* | public.* |
 
 ---
 
-## ⚠️ MIGRATION DE SUPABASE À NEON+FIREBASE
-
-Si vous aviez du code Supabase Auth avant:
-
-### Avant (Supabase):
-```typescript
-const { data: { user } } = await supabase.auth.getUser();
-user_id = user.id; // UUID
-```
+## ⚠️ Adaptation vers Firebase
 
 ### Après (Firebase):
 ```typescript
@@ -170,12 +153,6 @@ user_id = user.uid; // TEXT (Firebase UID)
 
 ### Mise à jour des Requêtes:
 ```typescript
-// Avant (Supabase)
-const data = await sql`
-  SELECT * FROM products 
-  WHERE user_id = ${user.id}::uuid
-`;
-
 // Après (Firebase + Neon)
 const data = await sql`
   SELECT * FROM products 
@@ -247,11 +224,10 @@ const orders = await sql`
 
 ### Erreur: "schema 'auth' does not exist"
 
-**Cause:** Vous utilisez la mauvaise migration
+**Cause:** Votre script référence un schema `auth` absent
 
 **Solution:**
-- ❌ Supprimez: `20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47.sql`
-- ✅ Utilisez: `20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47_NEON.sql`
+- Utilisez une migration compatible Neon/Firebase (sans `auth.*`)
 
 ### Erreur: "user_id mismatch"
 
@@ -269,12 +245,12 @@ await sql`
 
 ### Erreur: "REFERENCES auth.users"
 
-**Cause:** Migration Supabase exécutée
+**Cause:** Un script non compatible a été exécuté
 
 **Solution:**
-- Supprimez la base
-- Créez nouvelle base
-- Exécutez migration `_NEON.sql`
+- Supprimez la base si nécessaire
+- Créez une nouvelle base
+- Exécutez une migration compatible Neon/Firebase
 
 ---
 
@@ -317,12 +293,11 @@ export default async function handler(req, res) {
 ## 📚 FICHIERS AFFECTÉS
 
 ### Migration SQL
-- ✅ `20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47_NEON.sql` (NOUVEAU)
-- ⚠️ `20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47.sql` (Ancien - ne pas utiliser)
+- ✅ Script Neon/Firebase (compatibles)
 
 ### Code TypeScript
-- `src/integrations/supabase/client.ts` → Remplacer par Firebase
-- `api/*.ts` → Mettre à jour user_id references
+- Retirez tout ancien client legacy
+- Mettez à jour `api/*.ts` pour utiliser l'UID Firebase
 
 ### Configuration
 - `.env.local` → Ajouter Firebase credentials
@@ -332,14 +307,13 @@ export default async function handler(req, res) {
 
 ## 🎯 PROCHAINES ÉTAPES
 
-1. **Exécuter la bonne migration:**
-   - Utilisez `supabase/migrations/20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47_NEON.sql`
+1. **Exécuter une migration compatible Neon/Firebase**
 
 2. **Configurer Firebase Auth:**
    - Voir [SETUP_CHECKLIST.md](./SETUP_CHECKLIST.md) Phase 3
 
 3. **Mettre à jour le code:**
-   - Remplacer Supabase par Firebase partout
+   - Remplacer l'ancien client par Firebase partout
 
 4. **Tester:**
    - Créer utilisateur Firebase
@@ -358,4 +332,4 @@ export default async function handler(req, res) {
 
 **Vous êtes maintenant prêt! 🚀**
 
-*Utilisez: `supabase/migrations/20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47_NEON.sql`*
+*Utilisez un script Neon/Firebase compatible*

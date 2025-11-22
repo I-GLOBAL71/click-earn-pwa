@@ -12,17 +12,17 @@ Résumé complet de toutes les solutions aux erreurs rencontrées.
 
 **Solution:** Migration corrigée avec `IF NOT EXISTS` et `DROP ... IF EXISTS`
 
-**Fichier:** `supabase/migrations/20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47.sql` (corrigé)
+**Migration:** script initial (corrigé)
 
 ---
 
 ### ❌ Erreur 2: "schema 'auth' does not exist"
 
-**Cause:** Utilisation de Firebase Auth au lieu de Supabase Auth
+**Cause:** Script non compatible (référence au schema `auth`), alors que Firebase Auth est utilisé
 
 **Solution:** Nouvelle migration pour Firebase + Neon
 
-**Fichier:** `supabase/migrations/20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47_NEON.sql` (NOUVEAU) ✅
+**Migration:** script compatible Neon/Firebase (NOUVEAU) ✅
 
 ---
 
@@ -34,15 +34,15 @@ Résumé complet de toutes les solutions aux erreurs rencontrées.
 
 | Setup | Migration à Utiliser |
 |-------|----------------------|
-| **Supabase Auth** | `20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47.sql` |
-| **Firebase Auth** ✅ | `20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47_NEON.sql` |
+| **Auth Legacy** | script initial (corrigé) |
+| **Firebase Auth** ✅ | script Neon/Firebase |
 
 ### Étape 2: Exécuter la Migration
 
 ```
 1. Allez à: https://console.neon.tech
 2. SQL Editor
-3. Ouvrez le fichier (selon votre setup)
+3. Ouvrez le script correspondant (selon votre setup)
 4. Copiez TOUT
 5. Collez dans Neon
 6. Execute
@@ -61,7 +61,7 @@ ORDER BY table_name;
 
 ### Étape 4: Continuer
 
-1. Exécuter la 2ème migration: `20251114143445_b264331f-5951-4b6c-aa00-37c3d904c9ad.sql`
+1. Exécuter la migration complémentaire (si nécessaire)
 2. Configurer Vercel
 3. Configurer Firebase
 4. Pousser sur GitHub
@@ -73,24 +73,15 @@ ORDER BY table_name;
 ### Migrations SQL
 
 ```
-✅ 20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47.sql
-   └─ Pour: Supabase Auth
-   └─ Statut: Corrigée (IF NOT EXISTS)
-
-✅ 20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47_NEON.sql
-   └─ Pour: Firebase Auth ⭐ UTILISEZ CELLE-CI
-   └─ Statut: Nouveau fichier
-   └─ Crée: Table users pour Firebase UIDs
-
-✅ 20251114143445_b264331f-5951-4b6c-aa00-37c3d904c9ad.sql
-   └─ Pour: Tables supplémentaires
-   └─ Statut: Inchangée
+✅ Script initial (corrigé) — idempotent
+✅ Script Neon/Firebase — crée `public.users` (id TEXT)
+✅ Script complémentaire — tables supplémentaires (facultatif)
 ```
 
 ### Guides Associés
 
 ```
-📖 NEON_FIREBASE_SETUP.md ⭐ NOUVEAU
+📖 NEON_FIREBASE_SETUP.md
    └─ Guide complet Neon + Firebase Auth
    └─ Explique les différences
    └─ Exemples de code TypeScript
@@ -197,8 +188,8 @@ const data = await sql`
 
 ### Migrations (2 fichiers)
 ```
-✅ 20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47.sql (Supabase)
-✅ 20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47_NEON.sql (Firebase)
+✅ Script initial (corrigé)
+✅ Script Neon/Firebase
 ```
 
 ### Documentation (12 fichiers)
@@ -246,7 +237,7 @@ const data = await sql`
 ## 🚀 COMMENCER MAINTENANT
 
 ### Rapide (10 min)
-1. Ouvrez: `supabase/migrations/20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47_NEON.sql`
+1. Ouvrez votre script Neon/Firebase
 2. Exécutez sur Neon
 3. Vérifiez les tables
 4. Continuez avec Vercel/Firebase
@@ -275,7 +266,7 @@ Vous avez maintenant:
 
 **Vous êtes prêt! 🚀**
 
-👉 **Commencez par:** `supabase/migrations/20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47_NEON.sql`
+👉 **Commencez par:** votre script Neon/Firebase
 
 ou
 

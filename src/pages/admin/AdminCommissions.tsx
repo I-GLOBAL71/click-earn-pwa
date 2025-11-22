@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
+import { getAuth } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Save, Info } from "lucide-react";
@@ -37,13 +37,14 @@ export const AdminCommissions = () => {
   const { data: settings, isLoading } = useQuery({
     queryKey: ["commission-settings"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("commission_settings")
-        .select("*")
-        .in("key", ["click_commission", "min_payout_amount"]);
-
-      if (error) throw error;
-      return data;
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${apiBase}/api/commission-settings`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
     },
   });
 
@@ -63,24 +64,18 @@ export const AdminCommissions = () => {
   const updateSettingsMutation = useMutation({
     mutationFn: async (data: CommissionFormData) => {
       const updates = [
-        {
-          key: "click_commission",
-          value: parseFloat(data.click_commission),
-        },
-        {
-          key: "min_payout_amount",
-          value: parseFloat(data.min_payout_amount),
-        },
+        { key: "click_commission", value: parseFloat(data.click_commission) },
+        { key: "min_payout_amount", value: parseFloat(data.min_payout_amount) },
       ];
-
-      for (const update of updates) {
-        const { error } = await supabase
-          .from("commission_settings")
-          .update({ value: update.value, updated_at: new Date().toISOString() })
-          .eq("key", update.key);
-
-        if (error) throw error;
-      }
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${apiBase}/api/commission-settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+        body: JSON.stringify({ updates }),
+      });
+      if (!res.ok) throw new Error(await res.text());
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["commission-settings"] });
@@ -89,13 +84,13 @@ export const AdminCommissions = () => {
         description: "Configuration mise à jour avec succès",
       });
     },
-    onError: (error) => {
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
       toast({
         title: "Erreur",
-        description: "Impossible de mettre à jour la configuration",
+        description: message || "Impossible de mettre à jour la configuration",
         variant: "destructive",
       });
-      console.error("Error updating settings:", error);
     },
   });
 

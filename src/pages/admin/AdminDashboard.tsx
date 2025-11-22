@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
+import { getAuth } from "firebase/auth";
 import { 
   Users, 
   Package, 
@@ -25,52 +25,21 @@ export const AdminDashboard = () => {
   }, []);
 
   const loadStats = async () => {
-    // Load ambassadors count
-    const { count: ambassadorsCount } = await supabase
-      .from('user_roles')
-      .select('*', { count: 'exact', head: true })
-      .eq('role', 'ambassador');
-
-    // Load products count
-    const { count: productsCount } = await supabase
-      .from('products')
-      .select('*', { count: 'exact', head: true });
-
-    // Load total revenue from commissions
-    const { data: commissionsData } = await supabase
-      .from('commissions')
-      .select('amount')
-      .eq('status', 'approved');
-
-    const totalRevenue = commissionsData?.reduce((sum, c) => sum + Number(c.amount), 0) || 0;
-
-    // Load pending payouts
-    const { data: payoutsData } = await supabase
-      .from('payouts')
-      .select('amount')
-      .eq('status', 'pending');
-
-    const pendingPayouts = payoutsData?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
-
-    // Load orders count
-    const { count: ordersCount } = await supabase
-      .from('orders')
-      .select('*', { count: 'exact', head: true });
-
-    // Load total clicks
-    const { data: linksData } = await supabase
-      .from('referral_links')
-      .select('clicks');
-
-    const totalClicks = linksData?.reduce((sum, l) => sum + (l.clicks || 0), 0) || 0;
-
+    const auth = getAuth();
+    const token = await auth.currentUser?.getIdToken();
+    const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+    const res = await fetch(`${apiBase}/api/admin/stats`, {
+      headers: { Authorization: token ? `Bearer ${token}` : '' },
+    });
+    if (!res.ok) return;
+    const data = await res.json();
     setStats({
-      totalAmbassadors: ambassadorsCount || 0,
-      totalProducts: productsCount || 0,
-      totalRevenue,
-      pendingPayouts,
-      totalOrders: ordersCount || 0,
-      totalClicks,
+      totalAmbassadors: Number(data.totalAmbassadors || 0),
+      totalProducts: Number(data.totalProducts || 0),
+      totalRevenue: Number(data.totalRevenue || 0),
+      pendingPayouts: Number(data.pendingPayouts || 0),
+      totalOrders: Number(data.totalOrders || 0),
+      totalClicks: Number(data.totalClicks || 0),
     });
   };
 

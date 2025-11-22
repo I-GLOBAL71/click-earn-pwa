@@ -37,10 +37,9 @@ Ce guide vous aide à déployer votre application sur Firebase Hosting, Vercel e
 
 ### Étape 4: Exécuter les migrations
 1. Dans Neon, allez à "SQL Editor"
-2. Copiez le contenu de `supabase/migrations/20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47.sql`
-3. Exécutez-le dans l'éditeur SQL
-4. Copiez le contenu de `supabase/migrations/20251114143445_b264331f-5951-4b6c-aa00-37c3d904c9ad.sql`
-5. Exécutez-le aussi
+2. Ouvrez votre script de migration Neon (compatible Firebase)
+3. Collez et exécutez le contenu
+4. Répétez avec les scripts complémentaires si nécessaire
 
 **Résultat:** Vos tables sont créées ✅
 
@@ -72,8 +71,6 @@ Ce guide vous aide à déployer votre application sur Firebase Hosting, Vercel e
 | Clé | Valeur |
 |-----|--------|
 | `NEON_DATABASE_URL` | Votre URL Neon (voir Étape 3 Neon) |
-| `SUPABASE_URL` | Votre URL Supabase (si utilisé) |
-| `SUPABASE_ANON_KEY` | Votre clé Supabase (si utilisé) |
 | `APP_PUBLIC_URL` | `https://yourapp.firebaseapp.com` |
 
 4. Cliquez "Deploy" pour commencer le déploiement
@@ -136,8 +133,6 @@ Allez à: **Settings** → **Environment Variables**
 Ajoutez:
 ```
 NEON_DATABASE_URL = [de Neon]
-SUPABASE_URL = [si utilisé]
-SUPABASE_ANON_KEY = [si utilisé]
 APP_PUBLIC_URL = https://yourapp.firebaseapp.com
 NODE_ENV = production
 ```

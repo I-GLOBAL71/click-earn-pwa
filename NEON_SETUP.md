@@ -22,7 +22,7 @@ La migration a été corrigée pour gérer ce cas:
 1. Allez à Neon SQL Editor
 2. Exécutez à nouveau le fichier migration complet:
    ```
-   supabase/migrations/20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47.sql
+   migrations_neon/initial.sql
    ```
 3. Cette fois, ça devrait fonctionner! ✅
 
@@ -87,18 +87,16 @@ postgresql://user:password@host.neon.tech/dbname?sslmode=require
 
 #### Migration 1:
 ```sql
--- Fichier: supabase/migrations/20251105164030_032e12af-80a2-44e3-b46d-954425c4ff47.sql
--- Copier tout le contenu
--- Exécuter dans Neon SQL Editor
+-- Exécutez votre script de migration Neon adapté (initial.sql)
+-- Collez le contenu dans Neon SQL Editor et exécutez
 ```
 
 **Résultat attendu:** Pas d'erreur, tout s'exécute
 
 #### Migration 2:
 ```sql
--- Fichier: supabase/migrations/20251114143445_b264331f-5951-4b6c-aa00-37c3d904c9ad.sql
--- Copier tout le contenu
--- Exécuter dans Neon SQL Editor
+-- Exécutez votre script complémentaire Neon (update.sql) si nécessaire
+-- Collez le contenu dans Neon SQL Editor et exécutez
 ```
 
 **Résultat attendu:** Pas d'erreur, tout s'exécute
@@ -204,13 +202,13 @@ Triggers:
 
 ### "relation 'auth.users' does not exist"
 
-**Cause:** Vous n'utilisez pas Supabase pour l'auth
+**Cause:** Votre migration référence un schema `auth` absent.
 
 **Solution:**
-Si vous utilisez Firebase Auth au lieu de Supabase:
-- Supprimez les références à `auth.users`
-- Créez une table `users` simple
-- Sauvegardez l'ID Firebase
+Avec Firebase Auth:
+- Ne référencez pas `auth.users`
+- Utilisez une table `users` dans `public`
+- Stockez l'UID Firebase (TYPE TEXT)
 
 ### "password authentication failed"
 
