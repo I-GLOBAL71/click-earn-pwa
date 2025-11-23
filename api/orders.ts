@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "vercel";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { neon } from "@neondatabase/serverless";
 import admin from "firebase-admin";
 
@@ -38,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await sql`create extension if not exists "uuid-ossp"`;
     await sql`create table if not exists orders (
       id uuid primary key default gen_random_uuid(),
-      user_id uuid not null,
+      user_id text not null,
       product_id uuid not null references products(id) on delete cascade,
       quantity integer not null check (quantity > 0),
       unit_price numeric(10,2) not null,
@@ -60,29 +60,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const method = req.method || "GET";
     if (method === "GET") {
       const uid = await ensureAuth(req);
-      const rows = await sql<any[]>`select id, product_id, quantity, unit_price, commission_type, commission_value, discount_amount, total_amount, status, invoice, created_at from orders where user_id = ${uid} order by created_at desc`;
+      await sql`select set_config('app.current_user_id', ${uid}, true)`;
+      const rows = await sql`select id, product_id, quantity, unit_price, commission_type, commission_value, discount_amount, total_amount, status, invoice, created_at from orders where user_id = ${uid} order by created_at desc`;
       return res.status(200).json(rows);
     }
 
     if (method === "POST") {
       const uid = await ensureAuth(req);
+      await sql`select set_config('app.current_user_id', ${uid}, true)`;
 
       const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
       const productId = String(body?.product_id || "").trim();
       const quantity = Number(body?.quantity || 0);
       if (!productId || !quantity || quantity <= 0) return res.status(400).json({ error: "Produit et quantité requis" });
 
-      const roleRows = await sql<{ role: string }[]>`select role from user_roles where user_id = ${uid} and role = 'ambassador' limit 1`;
+      const roleRows = await sql`select role from user_roles where user_id = ${uid} and role = 'ambassador' limit 1`;
       if (roleRows.length === 0) return res.status(403).json({ error: "Réservé aux ambassadeurs" });
 
-      const prodRows = await sql<{
-        id: string;
-        name: string;
-        price: number;
-        commission_type: string;
-        commission_value: number;
-        stock_quantity: number | null;
-      }[]>`select id, name, price, commission_type, commission_value, stock_quantity from products where id = ${productId} and is_active = true limit 1`;
+      const prodRows = await sql`select id, name, price, commission_type, commission_value, stock_quantity from products where id = ${productId} and is_active = true limit 1`;
       if (prodRows.length === 0) return res.status(404).json({ error: "Produit introuvable" });
       const product = prodRows[0];
 
@@ -92,7 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let cType = String(product.commission_type || "percentage");
       let cValue = Number(product.commission_value || 0);
       if (!cValue || cValue <= 0) {
-        const catRows = await sql<{ category: string; commission_type: string; commission_value: number }[]>`select p.category, c.commission_type, c.commission_value from products p left join category_commissions c on p.category = c.category where p.id = ${productId} limit 1`;
+        const catRows = await sql`select p.category, c.commission_type, c.commission_value from products p left join category_commissions c on p.category = c.category where p.id = ${productId} limit 1`;
         const cat = catRows[0];
         if (cat && Number(cat.commission_value) > 0) {
           cType = cat.commission_type;
@@ -123,7 +118,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         currency: "FCFA",
       };
 
-      const inserted = await sql<any[]>`insert into orders (user_id, product_id, quantity, unit_price, commission_type, commission_value, discount_amount, total_amount, status, invoice) values (${uid}, ${productId}, ${quantity}, ${unitPrice}, ${cType}, ${cValue}, ${discountAmount}, ${totalAmount}, ${"confirmed"}, ${JSON.stringify(invoice)}) returning id, created_at`;
+      const inserted = await sql`insert into orders (user_id, product_id, quantity, unit_price, commission_type, commission_value, discount_amount, total_amount, status, invoice) values (${uid}, ${productId}, ${quantity}, ${unitPrice}, ${cType}, ${cValue}, ${discountAmount}, ${totalAmount}, ${"confirmed"}, ${JSON.stringify(invoice)}) returning id, created_at`;
       try {
         await sql`insert into commissions (user_id, order_id, type, amount, status) values (${uid}, ${inserted[0]?.id}, ${"personal_purchase"}, ${0}, ${"pending"})`;
       } catch (_) {}

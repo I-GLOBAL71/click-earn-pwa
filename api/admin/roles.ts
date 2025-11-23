@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "vercel";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { neon } from "@neondatabase/serverless";
 import admin from "firebase-admin";
 
@@ -19,7 +19,7 @@ async function ensureAdmin(req: VercelRequest) {
   const dbUrl = process.env.NEON_DATABASE_URL || "";
   if (!dbUrl) throw new Error("NEON_DATABASE_URL requis");
   const sql = neon(dbUrl);
-  const rows = await sql<{ role: string }[]>`select role from user_roles where user_id = ${decoded.uid} and role = 'admin' limit 1`;
+  const rows = await sql`select role from user_roles where user_id = ${decoded.uid} and role = 'admin' limit 1`;
   if (rows.length === 0) throw new Error("Non autorisé");
   return decoded.uid;
 }
@@ -43,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === "GET") {
       await ensureAdmin(req);
-      const rows = await sql<{ user_id: string; role: string }[]>`select user_id, role from user_roles order by user_id`;
+      const rows = await sql`select user_id, role from user_roles order by user_id`;
       const out: { user_id: string; role: string; email?: string | null }[] = [];
       for (const r of rows) {
         let email: string | null = null;

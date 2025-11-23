@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "vercel";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { neon } from "@neondatabase/serverless";
 import admin from "firebase-admin";
 
@@ -19,7 +19,7 @@ async function ensureAdmin(req: VercelRequest) {
   const dbUrl = process.env.NEON_DATABASE_URL || "";
   if (!dbUrl) throw new Error("NEON_DATABASE_URL requis");
   const sql = neon(dbUrl);
-  const rows = await sql<{ role: string }[]>`select role from user_roles where user_id = ${decoded.uid} and role = 'admin' limit 1`;
+  const rows = await sql`select role from user_roles where user_id = ${decoded.uid} and role = 'admin' limit 1`;
   if (rows.length === 0) throw new Error("Non autorisé");
   return decoded.uid;
 }
@@ -46,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await sql`create extension if not exists "uuid-ossp"`;
     await sql`create table if not exists orders (
       id uuid primary key default gen_random_uuid(),
-      user_id uuid not null,
+      user_id text not null,
       product_id uuid not null references products(id) on delete cascade,
       quantity integer not null check (quantity > 0),
       unit_price numeric(10,2) not null,
@@ -59,11 +59,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       created_at timestamp with time zone default now()
     )`;
 
-    const rows = await sql<any[]>`select o.id, o.user_id, o.product_id, p.name as product_name, o.quantity, o.unit_price, o.discount_amount, o.total_amount, o.status, o.invoice, o.created_at from orders o left join products p on p.id = o.product_id order by o.created_at desc`;
+    const rows = await sql`select o.id, o.user_id, o.product_id, p.name as product_name, o.quantity, o.unit_price, o.discount_amount, o.total_amount, o.status, o.invoice, o.created_at from orders o left join products p on p.id = o.product_id order by o.created_at desc`;
     return res.status(200).json(rows);
   } catch (e: any) {
     const msg = typeof e?.message === "string" ? e.message : "Erreur inconnue";
     return res.status(400).json({ error: msg });
   }
 }
-

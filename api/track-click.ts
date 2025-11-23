@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "vercel";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { neon } from "@neondatabase/serverless";
 
 const allowHeaders = "authorization, x-client-info, apikey, content-type, x-forwarded-for, x-real-ip";
@@ -24,12 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const code = body?.code;
     if (!code) return res.status(400).json({ error: "Code de recommandation requis" });
 
-    const linkRows = await sql<{
-      id: string;
-      user_id: string;
-      product_id: string;
-      clicks: number;
-    }[]>`select id, user_id, product_id, clicks from referral_links where code = ${code} limit 1`;
+    const linkRows = await sql`select id, user_id, product_id, clicks from referral_links where code = ${code} limit 1`;
     if (linkRows.length === 0) return res.status(400).json({ error: "Lien de recommandation invalide" });
     const referralLink = linkRows[0];
 
@@ -61,7 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!isSuspicious) {
       await sql`update referral_links set clicks = ${Number(referralLink.clicks || 0) + 1} where id = ${referralLink.id}`;
-      const setting = await sql<{ value: number }[]>`select value from commission_settings where key = 'click_commission' limit 1`;
+      const setting = await sql`select value from commission_settings where key = 'click_commission' limit 1`;
       if (setting.length > 0 && Number(setting[0].value) > 0) {
         await sql`insert into commissions (user_id, referral_link_id, type, amount, status) values (${referralLink.user_id}, ${referralLink.id}, ${"click"}, ${Number(setting[0].value)}, ${"pending"})`;
       }

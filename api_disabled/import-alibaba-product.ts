@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "vercel";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { neon } from "@neondatabase/serverless";
 
 const allowHeaders = "authorization, x-client-info, apikey, content-type";

@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS public.products (
 
 CREATE TABLE IF NOT EXISTS public.referral_links (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL,
+  user_id TEXT NOT NULL,
   product_id UUID REFERENCES public.products(id) ON DELETE CASCADE,
   code TEXT NOT NULL UNIQUE,
   clicks INTEGER DEFAULT 0,
@@ -55,7 +55,7 @@ ON CONFLICT (key) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS public.commissions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL,
+  user_id TEXT NOT NULL,
   order_id UUID,
   referral_link_id UUID,
   amount NUMERIC(10,2) NOT NULL,

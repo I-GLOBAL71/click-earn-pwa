@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "vercel";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { neon } from "@neondatabase/serverless";
 import admin from "firebase-admin";
 
@@ -19,7 +19,7 @@ async function ensureAdmin(req: VercelRequest) {
   const dbUrl = process.env.NEON_DATABASE_URL || "";
   if (!dbUrl) throw new Error("NEON_DATABASE_URL requis");
   const sql = neon(dbUrl);
-  const rows = await sql<{ role: string }[]>`select role from user_roles where user_id = ${decoded.uid} and role = 'admin' limit 1`;
+  const rows = await sql`select role from user_roles where user_id = ${decoded.uid} and role = 'admin' limit 1`;
   if (rows.length === 0) throw new Error("Non autorisé");
   return decoded.uid;
 }
@@ -42,12 +42,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!dbUrl) return res.status(500).json({ error: "NEON_DATABASE_URL requis" });
     const sql = neon(dbUrl);
 
-    const [{ count: totalAmbassadors }] = await sql<{ count: number }[]>`select count(*)::int as count from user_roles where role = 'ambassador'`;
-    const [{ count: totalProducts }] = await sql<{ count: number }[]>`select count(*)::int as count from products`;
-    const [{ total_revenue }] = await sql<{ total_revenue: number | null }[]>`select coalesce(sum(amount), 0) as total_revenue from commissions where status = 'approved'`;
-    const [{ pending_payouts }] = await sql<{ pending_payouts: number | null }[]>`select coalesce(sum(amount), 0) as pending_payouts from payouts where status = 'pending'`;
-    const [{ count: totalOrders }] = await sql<{ count: number }[]>`select count(*)::int as count from orders`;
-    const [{ total_clicks }] = await sql<{ total_clicks: number | null }[]>`select coalesce(sum(clicks), 0) as total_clicks from referral_links`;
+    const [{ count: totalAmbassadors }] = await sql`select count(*)::int as count from user_roles where role = 'ambassador'`;
+    const [{ count: totalProducts }] = await sql`select count(*)::int as count from products`;
+    const [{ total_revenue }] = await sql`select coalesce(sum(amount), 0) as total_revenue from commissions where status = 'approved'`;
+    const [{ pending_payouts }] = await sql`select coalesce(sum(amount), 0) as pending_payouts from payouts where status = 'pending'`;
+    const [{ count: totalOrders }] = await sql`select count(*)::int as count from orders`;
+    const [{ total_clicks }] = await sql`select coalesce(sum(clicks), 0) as total_clicks from referral_links`;
 
     return res.status(200).json({
       totalAmbassadors: totalAmbassadors || 0,

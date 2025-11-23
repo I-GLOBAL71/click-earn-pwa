@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "vercel";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { neon } from "@neondatabase/serverless";
 
 const allowHeaders = "authorization, x-client-info, apikey, content-type";
@@ -23,35 +23,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (id) {
         await sql`create table if not exists product_images (id uuid primary key default gen_random_uuid(), product_id uuid references products(id) on delete cascade, url text not null, is_main boolean default false)`;
-        const rows = await sql<{
-          id: string;
-          name: string;
-          description: string | null;
-          category: string | null;
-          price: number;
-          commission_type: string;
-          commission_value: number;
-          image_url: string | null;
-          stock_quantity: number | null;
-        }[]>`select id, name, description, category, price, commission_type, commission_value, image_url, stock_quantity from products where id = ${id} and is_active = true limit 1`;
+        const rows = await sql`select id, name, description, category, price, commission_type, commission_value, image_url, stock_quantity from products where id = ${id} and is_active = true limit 1`;
         if (rows.length === 0) return res.status(404).json({ error: "Produit introuvable" });
-        const imgs = await sql<{ url: string; is_main: boolean }[]>`select url, is_main from product_images where product_id = ${id} order by is_main desc, id asc`;
+        const imgs = await sql`select url, is_main from product_images where product_id = ${id} order by is_main desc, id asc`;
         const images = imgs.map(i => i.url);
         const product = { ...rows[0], images };
         return res.status(200).json(product);
       }
 
-      const rows = await sql<{
-        id: string;
-        name: string;
-        description: string | null;
-        category: string | null;
-        price: number;
-        commission_type: string;
-        commission_value: number;
-        image_url: string | null;
-        stock_quantity: number | null;
-      }[]>`select id, name, description, category, price, commission_type, commission_value, image_url, stock_quantity from products where is_active = true order by created_at desc`;
+      const rows = await sql`select id, name, description, category, price, commission_type, commission_value, image_url, stock_quantity from products where is_active = true order by created_at desc`;
       return res.status(200).json(rows);
     }
 

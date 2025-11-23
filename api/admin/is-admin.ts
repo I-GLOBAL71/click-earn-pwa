@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "vercel";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { neon } from "@neondatabase/serverless";
 import admin from "firebase-admin";
 
@@ -29,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const dbUrl = process.env.NEON_DATABASE_URL || "";
     if (!dbUrl) return res.status(200).json({ isAdmin: false });
     const sql = neon(dbUrl);
-    const rows = await sql<{ role: string }[]>`select role from user_roles where user_id = ${decoded.uid} and role = 'admin' limit 1`;
+    const rows = await sql`select role from user_roles where user_id = ${decoded.uid} and role = 'admin' limit 1`;
     const isAdmin = rows.length > 0;
     return res.status(200).json({ isAdmin, role: isAdmin ? "admin" : "user" });
   } catch (_) {

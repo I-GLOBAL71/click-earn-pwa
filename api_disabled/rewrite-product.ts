@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "vercel";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { neon } from "@neondatabase/serverless";
 
 const allowHeaders = "authorization, x-client-info, apikey, content-type";
@@ -106,7 +106,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let geminiTemperature = 0.5;
       let apiKey = process.env.GEMINI_API_KEY || "";
       if (sql) {
-        const s = await sql<{ key: string; value: string }[]>`select key, value from system_settings where key in ('gemini_enabled','gemini_model','gemini_temperature','gemini_api_key')`;
+        const s = await sql`select key, value from system_settings where key in ('gemini_enabled','gemini_model','gemini_temperature','gemini_api_key')`;
         const m = new Map(s.map(r => [r.key, r.value]));
         geminiEnabled = String(m.get('gemini_enabled') || "false").toLowerCase() === 'true';
         geminiModel = String(m.get('gemini_model') || geminiModel);

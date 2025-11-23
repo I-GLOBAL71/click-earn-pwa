@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "vercel";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { neon } from "@neondatabase/serverless";
 import admin from "firebase-admin";
 
@@ -19,7 +19,7 @@ async function ensureAdmin(req: VercelRequest) {
   const dbUrl = process.env.NEON_DATABASE_URL || "";
   if (!dbUrl) throw new Error("NEON_DATABASE_URL requis");
   const sql = neon(dbUrl);
-  const rows = await sql<{ role: string }[]>`select role from user_roles where user_id = ${decoded.uid} and role = 'admin' limit 1`;
+  const rows = await sql`select role from user_roles where user_id = ${decoded.uid} and role = 'admin' limit 1`;
   if (rows.length === 0) throw new Error("Non autorisé");
   return decoded.uid;
 }
@@ -44,7 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === "GET") {
       await ensureAdmin(req);
-      const rows = await sql<{ key: string; value: string | null }[]>`select key, value from system_settings where key in ('gemini_enabled','gemini_model','gemini_temperature','gemini_api_key')`;
+      const rows = await sql`select key, value from system_settings where key in ('gemini_enabled','gemini_model','gemini_temperature','gemini_api_key')`;
       const map = new Map(rows.map(r => [r.key, r.value || ""]));
       const maskedKey = String(map.get('gemini_api_key') || "");
       const mask = maskedKey ? `${maskedKey.slice(0, 4)}...${maskedKey.slice(-4)}` : "";

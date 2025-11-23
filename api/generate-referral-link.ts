@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "vercel";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { neon } from "@neondatabase/serverless";
 import admin from "firebase-admin";
 
@@ -43,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sql = neon(dbUrl);
 
     await sql`create table if not exists users (id text primary key, email text, full_name text, created_at timestamp with time zone default now())`;
-    const urows = await sql<{ id: string }[]>`select id from users where id = ${userId} limit 1`;
+    const urows = await sql`select id from users where id = ${userId} limit 1`;
     if (urows.length === 0) {
       const email = String(decoded.email || "");
       const name = String((decoded as any).name || (decoded as any).displayName || "");
@@ -51,14 +51,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await sql`insert into users (id, email, full_name) values (${userId}, ${email || null}, ${name || null}) on conflict (id) do nothing`;
       } catch (_) {}
     }
-    const productRows = await sql<{ id: string }[]>`select id from products where id = ${productId} limit 1`;
+    const productRows = await sql`select id from products where id = ${productId} limit 1`;
     if (productRows.length === 0) return res.status(400).json({ error: "Produit introuvable" });
 
-    const existingLink = await sql<{
-      id: string;
-      code: string;
-      product_id: string;
-    }[]>`select id, code, product_id from referral_links where user_id = ${userId} and product_id = ${productId} limit 1`;
+    const existingLink = await sql`select id, code, product_id from referral_links where user_id = ${userId} and product_id = ${productId} limit 1`;
 
     if (existingLink.length > 0) {
       const code = existingLink[0].code;
@@ -77,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let inserted;
     try {
-      inserted = await sql`insert into referral_links (user_id, product_id, code, clicks, conversions, total_commission) values (${userId}, ${productId}, ${code}, 0, 0, 0) returning id`;
+      inserted = await sql`with s as (select set_config('app.current_user_id', ${userId}, true)) insert into referral_links (user_id, product_id, code, clicks, conversions, total_commission) values (${userId}, ${productId}, ${code}, 0, 0, 0) returning id`;
     } catch (err: any) {
       const m = String(err?.message || "");
       if (/referral_links_user_id_fkey/i.test(m) || /foreign key constraint/i.test(m)) {
@@ -85,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const name = String((decoded as any).name || (decoded as any).displayName || "");
         try {
           await sql`insert into users (id, email, full_name) values (${userId}, ${email || null}, ${name || null}) on conflict (id) do nothing`;
-          inserted = await sql`insert into referral_links (user_id, product_id, code, clicks, conversions, total_commission) values (${userId}, ${productId}, ${code}, 0, 0, 0) returning id`;
+          inserted = await sql`with s as (select set_config('app.current_user_id', ${userId}, true)) insert into referral_links (user_id, product_id, code, clicks, conversions, total_commission) values (${userId}, ${productId}, ${code}, 0, 0, 0) returning id`;
         } catch (e: any) {
           const mm = String(e?.message || "");
           if (/foreign key constraint/i.test(mm)) return res.status(400).json({ error: "Profil utilisateur absent. Contactez le support." });

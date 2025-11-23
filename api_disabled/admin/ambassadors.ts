@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "vercel";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { neon } from "@neondatabase/serverless";
 import admin from "firebase-admin";
 
@@ -19,7 +19,7 @@ async function ensureAdmin(req: VercelRequest) {
   const dbUrl = process.env.NEON_DATABASE_URL || "";
   if (!dbUrl) throw new Error("NEON_DATABASE_URL requis");
   const sql = neon(dbUrl);
-  const rows = await sql<{ role: string }[]>`select role from user_roles where user_id = ${decoded.uid} and role = 'admin' limit 1`;
+  const rows = await sql`select role from user_roles where user_id = ${decoded.uid} and role = 'admin' limit 1`;
   if (rows.length === 0) throw new Error("Non autorisé");
   return decoded.uid;
 }
@@ -42,14 +42,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!dbUrl) return res.status(500).json({ error: "NEON_DATABASE_URL requis" });
     const sql = neon(dbUrl);
 
-    const ambassadorRoleRows = await sql<{ user_id: string }[]>`select user_id from user_roles where role = 'ambassador'`;
+    const ambassadorRoleRows = await sql`select user_id from user_roles where role = 'ambassador'`;
     const userIds = ambassadorRoleRows.map(r => r.user_id);
     if (userIds.length === 0) return res.status(200).json([]);
 
-    const profiles = await sql<{ id: string; full_name: string | null; phone: string | null; created_at: string | null }[]>`select id, full_name, phone, created_at from profiles where id in (${userIds})`;
+    const profiles = await sql`select id, full_name, phone, created_at from profiles where id in (${userIds})`;
 
-    const commissions = await sql<{ user_id: string; amount: number }[]>`select user_id, amount from commissions where user_id in (${userIds})`;
-    const links = await sql<{ user_id: string; clicks: number | null }[]>`select user_id, clicks from referral_links where user_id in (${userIds})`;
+    const commissions = await sql`select user_id, amount from commissions where user_id in (${userIds})`;
+    const links = await sql`select user_id, clicks from referral_links where user_id in (${userIds})`;
 
     const authUsers = await admin.auth().getUsers(userIds.map(uid => ({ uid })));
     const emailMap = new Map<string, string>();
