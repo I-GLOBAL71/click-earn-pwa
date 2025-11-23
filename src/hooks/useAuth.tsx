@@ -31,7 +31,7 @@ export const useAuth = () => {
       if (u) {
         try {
           const token = await u.getIdToken();
-          const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
+          const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
           if (apiBase) {
             const res = await fetch(`${apiBase}/api/admin/is-admin`, { headers: { Authorization: `Bearer ${token}` } });
             if (res.ok) {
@@ -70,7 +70,7 @@ export const useAuth = () => {
 
   const signOut = async () => {
     await fbSignOut(getAuth());
-    navigate('/auth');
+    navigate('/home');
   };
 
   return {

@@ -1,238 +1,243 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, Share2, TrendingUp, ShoppingCart, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, ShoppingCart, Check, Star, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-
-// Mock products data - ideally this would come from a backend
-const products = [
-  {
-    id: 1,
-    name: "Écouteurs Bluetooth Pro",
-    category: "Audio",
-    price: 89.99,
-    commission: 15,
-    image: "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800&h=600&fit=crop",
-    trending: true,
-    description: "Écouteurs sans fil haute qualité avec réduction de bruit active. Batterie longue durée de 24h. Son cristallin et basses profondes.",
-    features: ["Réduction de bruit active", "24h d'autonomie", "Bluetooth 5.0", "Étanche IPX7"],
-  },
-  {
-    id: 2,
-    name: "Montre connectée Sport",
-    category: "Wearables",
-    price: 249.99,
-    commission: 10,
-    image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&h=600&fit=crop",
-    trending: true,
-    description: "Montre intelligente avec suivi fitness avancé et notifications. GPS intégré et résistante à l'eau.",
-    features: ["GPS intégré", "Suivi santé 24/7", "Notifications smartphone", "Étanche 50m"],
-  },
-  {
-    id: 3,
-    name: "Chargeur sans fil rapide",
-    category: "Accessoires",
-    price: 39.99,
-    commission: 20,
-    image: "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=800&h=600&fit=crop",
-    trending: false,
-    description: "Chargeur sans fil ultra-rapide compatible avec tous les smartphones. Design élégant et compact.",
-    features: ["Charge rapide 15W", "Compatible universel", "Protection surchauffe", "LED indicateur"],
-  },
-  {
-    id: 4,
-    name: "Casque audio Premium",
-    category: "Audio",
-    price: 299.99,
-    commission: 12,
-    image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&h=600&fit=crop",
-    trending: true,
-    description: "Casque audio haut de gamme avec son Hi-Fi et réduction de bruit. Confort maximal pour de longues sessions.",
-    features: ["Son Hi-Fi", "Réduction bruit ANC", "40h d'autonomie", "Coussinets mémoire"],
-  },
-  {
-    id: 5,
-    name: "Souris ergonomique Pro",
-    category: "Informatique",
-    price: 79.99,
-    commission: 18,
-    image: "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=800&h=600&fit=crop",
-    trending: false,
-    description: "Souris ergonomique professionnelle pour un confort optimal. Précision gaming et productivité.",
-    features: ["Design ergonomique", "DPI ajustable", "6 boutons programmables", "Sans fil 2.4GHz"],
-  },
-  {
-    id: 6,
-    name: "Webcam 4K Ultra HD",
-    category: "Informatique",
-    price: 149.99,
-    commission: 15,
-    image: "https://images.unsplash.com/photo-1599058917212-d750089bc07e?w=800&h=600&fit=crop",
-    trending: false,
-    description: "Webcam 4K professionnelle avec autofocus et microphone stéréo. Idéale pour le streaming et visioconférences.",
-    features: ["Qualité 4K 30fps", "Autofocus rapide", "Micro stéréo", "Correction lumière"],
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import { getAuth } from "firebase/auth";
+import useEmblaCarousel from "embla-carousel-react";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [isOrdering, setIsOrdering] = useState(false);
+  const [quantity, setQuantity] = useState(1);
 
-  const product = products.find((p) => p.id === Number(id));
+  const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
+
+  const { data: product, isLoading } = useQuery({
+    queryKey: ["product", id],
+    queryFn: async () => {
+      const resp = await fetch(`${apiBase}/api/products?id=${encodeURIComponent(String(id))}`);
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json?.error || "Produit introuvable");
+      return json;
+    },
+    enabled: Boolean(id)
+  });
+
+  const { data: isAmbassadorRes } = useQuery({
+    queryKey: ["is-ambassador"],
+    queryFn: async () => {
+      const auth = getAuth();
+      const current = auth.currentUser;
+      if (!current) return { isAmbassador: false };
+      const token = await current.getIdToken();
+      const resp = await fetch(`${apiBase}/api/is-ambassador`, { headers: { Authorization: `Bearer ${token}` } });
+      const json = await resp.json().catch(() => ({ isAmbassador: false }));
+      return json;
+    }
+  });
+
+  const [emblaRef] = useEmblaCarousel({ loop: true });
+
+  const images: string[] = useMemo(() => {
+    const arr = Array.isArray(product?.images) && product.images.length ? product.images : (product?.image_url ? [product.image_url] : []);
+    return arr.map((u: string) => u.replace(/([?&])w=\d+[^&]*/g, "").replace(/([?&])h=\d+[^&]*/g, ""));
+  }, [product]);
+
+  const formatPrice = (price: number) => `${Number(price || 0).toLocaleString('fr-FR')} FCFA`;
+
+  const commissionType = String(product?.commission_type || "percentage");
+  const commissionValue = Number(product?.commission_value || 0);
+  const unitPrice = Number(product?.price || 0);
+  const ambassador = Boolean(isAmbassadorRes?.isAmbassador);
+  const discountPerUnit = ambassador ? (commissionType === "percentage" ? unitPrice * (commissionValue / 100) : Math.min(unitPrice, Math.max(0, commissionValue))) : 0;
+  const discountedUnit = Math.max(0.01, unitPrice - discountPerUnit);
+  const totalDue = discountedUnit * quantity;
+  const savings = discountPerUnit * quantity;
+
+  const features = useMemo(() => {
+    const desc = String(product?.description || "");
+    const parts = desc.split(/[.;\n]+/).map(p => p.trim()).filter(p => p.length >= 6).slice(0, 8);
+    return parts;
+  }, [product]);
+
+  const changeQty = (delta: number) => {
+    const stock = Number(product?.stock_quantity || 0);
+    const next = Math.max(1, quantity + delta);
+    const capped = stock > 0 ? Math.min(stock, next) : next;
+    setQuantity(capped);
+  };
+
+  const handleOrder = async () => {
+    try {
+      const auth = getAuth();
+      const current = auth.currentUser;
+      if (!current) {
+        window.dispatchEvent(new CustomEvent('open-auth-modal', { detail: { intent: 'order' } }));
+        return;
+      }
+      if (!ambassador) throw new Error("Réservé aux ambassadeurs");
+      const token = await current.getIdToken();
+      const resp = await fetch(`${apiBase}/api/orders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ product_id: id, quantity })
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json?.error || "Commande impossible");
+      toast.success("Commande confirmée", { description: `Total: ${formatPrice(json.total_amount)} • Économie: ${formatPrice(json.discount_amount)}` });
+      navigate("/dashboard");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur");
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container py-8"><p>Chargement…</p></main>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="container py-8">
-          <p>Produit non trouvé</p>
-        </main>
+        <main className="container py-8"><p>Produit non trouvé</p></main>
       </div>
     );
   }
 
-  const ambassadorPrice = product.price * (1 - product.commission / 100);
-  const savings = product.price - ambassadorPrice;
-
-  const handleOrder = () => {
-    setIsOrdering(true);
-    setTimeout(() => {
-      toast.success(`Commande confirmée pour "${product.name}"!`, {
-        description: `Vous avez économisé €${savings.toFixed(2)} avec votre remise ambassadeur.`,
-      });
-      setIsOrdering(false);
-      navigate("/dashboard");
-    }, 1500);
-  };
-
-  const handleRecommend = () => {
-    toast.success(`Lien de recommandation généré pour "${product.name}"!`, {
-      description: "Le lien a été copié dans votre presse-papier.",
-    });
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <Header />
-
       <main className="container py-8">
-        {/* Back button */}
-        <Button
-          variant="ghost"
-          onClick={() => navigate("/products")}
-          className="mb-6"
-        >
+        <Button variant="ghost" onClick={() => navigate("/products")} className="mb-6">
           <ArrowLeft className="h-4 w-4" />
           Retour aux produits
         </Button>
 
         <div className="grid gap-8 lg:grid-cols-2">
-          {/* Product Image */}
-          <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted animate-fade-in">
-            <img
-              src={product.image}
-              alt={product.name}
-              className="h-full w-full object-cover"
-            />
-            {product.trending && (
-              <Badge className="absolute right-4 top-4 gradient-secondary border-0">
-                <TrendingUp className="mr-1 h-3 w-3" />
-                Tendance
-              </Badge>
-            )}
+          <div className="space-y-4 animate-fade-in">
+            <div className="overflow-hidden rounded-2xl">
+              <div className="embla" ref={emblaRef}>
+                <div className="embla__container flex">
+                  {images.map((src, idx) => (
+                    <div key={idx} className="embla__slide min-w-0 flex-[0_0_100%] relative aspect-square bg-muted">
+                      <img src={src} alt={`Image ${idx + 1}`} className="h-full w-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 overflow-x-auto">
+              {images.map((src, idx) => (
+                <div key={idx} className="h-16 w-16 rounded-md overflow-hidden border">
+                  <img src={src} alt={`Thumb ${idx + 1}`} className="h-full w-full object-cover" />
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary">{product.category}</Badge>
+              {product.stock_quantity && product.stock_quantity < 10 && (
+                <Badge className="bg-red-500 border-0">Stock limité</Badge>
+              )}
+              <Badge variant="outline" className="flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> Qualité vérifiée</Badge>
+            </div>
           </div>
 
-          {/* Product Info */}
           <div className="space-y-6 animate-slide-up">
             <div>
-              <Badge variant="secondary" className="mb-3">
-                {product.category}
-              </Badge>
               <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
-              <p className="text-muted-foreground">{product.description}</p>
+              {product.description && <p className="text-muted-foreground whitespace-pre-line">{product.description}</p>}
             </div>
 
-            {/* Features */}
             <Card className="shadow-card">
               <CardContent className="pt-6">
                 <h3 className="font-semibold mb-3">Caractéristiques</h3>
                 <ul className="space-y-2">
-                  {product.features.map((feature, index) => (
+                  {features.map((feature, index) => (
                     <li key={index} className="flex items-center gap-2">
                       <Check className="h-4 w-4 text-secondary" />
                       <span className="text-sm">{feature}</span>
                     </li>
                   ))}
+                  {features.length === 0 && (
+                    <li className="text-sm text-muted-foreground">Aucune caractéristique détaillée</li>
+                  )}
                 </ul>
               </CardContent>
             </Card>
 
-            {/* Pricing Card */}
             <Card className="shadow-elegant gradient-hero border-0">
               <CardContent className="pt-6 space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground line-through">
-                      Prix public: €{product.price.toFixed(2)}
-                    </p>
-                    <p className="text-3xl font-bold text-primary">
-                      €{ambassadorPrice.toFixed(2)}
-                    </p>
+                    <p className="text-sm text-muted-foreground line-through">{formatPrice(unitPrice)}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-3xl font-bold text-primary">{formatPrice(discountedUnit)}</p>
+                      {ambassador && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge aria-label="Réduction appliquée" className="bg-secondary text-secondary-foreground border-0">
+                              Réduction appliquée
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Remise {commissionType === 'percentage' ? `${commissionValue}%` : `${formatPrice(commissionValue)}`} appliquée grâce à votre statut ambassadeur
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
                     <p className="text-sm font-medium text-secondary">
-                      Prix ambassadeur (-{product.commission}%)
+                      {ambassador ? (
+                        <>Prix ambassadeur ({commissionType === 'percentage' ? `-${commissionValue}%` : `-${formatPrice(commissionValue)}`})</>
+                      ) : (
+                        <>Connectez-vous en tant qu'ambassadeur pour la remise</>
+                      )}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Vous économisez</p>
-                    <p className="text-2xl font-bold text-secondary">
-                      €{savings.toFixed(2)}
-                    </p>
+                    <p className="text-sm text-muted-foreground">Économie</p>
+                    <p className="text-2xl font-bold text-secondary">{formatPrice(savings)}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-1">
+                    <label className="text-xs text-muted-foreground">Quantité</label>
+                    <div className="mt-1 flex items-center gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => changeQty(-1)}>-</Button>
+                      <Input type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value || '1')))} className="w-20 text-center" />
+                      <Button type="button" variant="outline" size="sm" onClick={() => changeQty(1)}>+</Button>
+                    </div>
+                    {product.stock_quantity > 0 && (
+                      <p className="mt-1 text-xs text-muted-foreground">Stock: {product.stock_quantity}</p>
+                    )}
+                  </div>
+                  <div className="col-span-2 text-right">
+                    <p className="text-xs text-muted-foreground">Total après réduction</p>
+                    <p className="text-xl font-semibold">{formatPrice(totalDue)}</p>
+                    <p className="text-xs text-secondary">Économie: {formatPrice(savings)}</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Button
-                    onClick={handleOrder}
-                    variant="hero"
-                    size="lg"
-                    className="w-full"
-                    disabled={isOrdering}
-                  >
+                  <Button onClick={handleOrder} variant="hero" size="lg" className="w-full" disabled={!ambassador}>
                     <ShoppingCart className="h-5 w-5" />
-                    {isOrdering ? "Commande en cours..." : "Commander maintenant"}
+                    Commander
                   </Button>
-                  <Button
-                    onClick={handleRecommend}
-                    variant="outline"
-                    size="lg"
-                    className="w-full"
-                  >
-                    <Share2 className="h-4 w-4" />
-                    Recommander et gagner €{(ambassadorPrice * product.commission / 100).toFixed(2)}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Ambassador Info */}
-            <Card className="shadow-card bg-secondary/5 border-secondary/20">
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-full bg-secondary/10 p-2">
-                    <TrendingUp className="h-5 w-5 text-secondary" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-1">Avantage ambassadeur</h4>
-                    <p className="text-sm text-muted-foreground">
-                      En tant qu'ambassadeur, vous bénéficiez automatiquement de {product.commission}% 
-                      de remise sur tous vos achats. Recommandez ce produit et gagnez également {product.commission}% 
-                      de commission sur chaque vente générée.
-                    </p>
-                  </div>
+                  {!ambassador && (
+                    <p className="text-xs text-muted-foreground text-center">Seuls les ambassadeurs peuvent commander à prix réduit</p>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -73,6 +73,11 @@ const Products = () => {
   });
 
   const handleRecommend = (productId: string) => {
+    const auth = getAuth();
+    if (!auth.currentUser) {
+      window.dispatchEvent(new CustomEvent('open-auth-modal', { detail: { intent: 'recommend' } }));
+      return;
+    }
     generateLinkMutation.mutate(productId);
   };
 

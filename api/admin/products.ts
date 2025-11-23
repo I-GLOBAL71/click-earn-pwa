@@ -61,12 +61,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         commission_value,
         stock_quantity,
         is_active = true,
+        images,
       } = body;
       if (!name || !category || !price || !commission_type || commission_value === undefined) {
         return res.status(400).json({ error: "Champs requis manquants" });
       }
       const inserted = await sql`insert into products (name, description, price, image_url, category, commission_type, commission_value, stock_quantity, is_active) values (${name}, ${description || null}, ${Number(price)}, ${image_url || null}, ${category}, ${commission_type}, ${Number(commission_value)}, ${stock_quantity ? Number(stock_quantity) : 0}, ${Boolean(is_active)}) returning id`;
-      return res.status(200).json({ id: inserted[0]?.id });
+      const newId = inserted[0]?.id;
+      if (newId && Array.isArray(images) && images.length) {
+        await sql`create table if not exists product_images (id uuid primary key default gen_random_uuid(), product_id uuid references products(id) on delete cascade, url text not null, is_main boolean default false)`;
+        const main = String(image_url || "").trim();
+        for (let i = 0; i < images.length && i < 12; i++) {
+          const url = String(images[i] || "").trim();
+          if (url) await sql`insert into product_images (product_id, url, is_main) values (${newId}, ${url}, ${main && url === main})`;
+        }
+      }
+      return res.status(200).json({ id: newId });
     }
 
     if (method === "PUT") {

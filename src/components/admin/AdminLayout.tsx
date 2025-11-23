@@ -8,7 +8,8 @@ import {
   CreditCard,
   Settings,
   LogOut,
-  Menu
+  Menu,
+  ShoppingCart
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ export const AdminLayout = () => {
     { to: "/admin/ambassadors", icon: Users, label: "Ambassadeurs" },
     { to: "/admin/products", icon: Package, label: "Produits" },
     { to: "/admin/commissions", icon: DollarSign, label: "Commissions" },
+    { to: "/admin/orders", icon: ShoppingCart, label: "Commandes" },
     { to: "/admin/analytics", icon: BarChart3, label: "Analytics" },
     { to: "/admin/payments", icon: CreditCard, label: "Paiements" },
     { to: "/admin/settings", icon: Settings, label: "Paramètres" },

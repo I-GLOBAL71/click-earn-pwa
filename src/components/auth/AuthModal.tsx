@@ -75,7 +75,7 @@ export const AuthModal = ({ isOpen, onClose, askEmailForLink = false, onSignedIn
   };
 
   const actionCodeSettings = {
-    url: `${import.meta.env.VITE_APP_PUBLIC_URL || window.location.origin}/auth`,
+    url: `${import.meta.env.VITE_APP_PUBLIC_URL || window.location.origin}`,
     handleCodeInApp: true,
   };
 

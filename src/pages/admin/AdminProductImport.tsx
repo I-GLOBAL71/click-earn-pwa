@@ -188,6 +188,7 @@ export const AdminProductImport = () => {
         commission_value: parseFloat(formData.commission_value),
         stock_quantity: parseInt(formData.stock_quantity),
         is_active: true,
+        images: images.map((i) => i.url),
       };
 
       const auth = getAuth();

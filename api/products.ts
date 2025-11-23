@@ -19,6 +19,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const dbUrl = process.env.NEON_DATABASE_URL || "";
     if (dbUrl) {
       const sql = neon(dbUrl);
+      const id = String((req.query?.id as string) || "").trim();
+
+      if (id) {
+        await sql`create table if not exists product_images (id uuid primary key default gen_random_uuid(), product_id uuid references products(id) on delete cascade, url text not null, is_main boolean default false)`;
+        const rows = await sql<{
+          id: string;
+          name: string;
+          description: string | null;
+          category: string | null;
+          price: number;
+          commission_type: string;
+          commission_value: number;
+          image_url: string | null;
+          stock_quantity: number | null;
+        }[]>`select id, name, description, category, price, commission_type, commission_value, image_url, stock_quantity from products where id = ${id} and is_active = true limit 1`;
+        if (rows.length === 0) return res.status(404).json({ error: "Produit introuvable" });
+        const imgs = await sql<{ url: string; is_main: boolean }[]>`select url, is_main from product_images where product_id = ${id} order by is_main desc, id asc`;
+        const images = imgs.map(i => i.url);
+        const product = { ...rows[0], images };
+        return res.status(200).json(product);
+      }
+
       const rows = await sql<{
         id: string;
         name: string;
@@ -33,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(rows);
     }
 
-    return res.status(200).json([]);
+    return res.status(500).json({ error: "NEON_DATABASE_URL requis" });
   } catch (e: any) {
     const msg = typeof e?.message === "string" ? e.message : "Erreur inconnue";
     return res.status(400).json({ error: msg });

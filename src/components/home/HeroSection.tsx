@@ -32,11 +32,9 @@ export const HeroSection = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-            <Button variant="hero" size="xl" asChild className="group">
-              <Link to="/auth?mode=signup">
-                Commencer gratuitement
-                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-              </Link>
+            <Button variant="hero" size="xl" className="group" onClick={() => { window.dispatchEvent(new CustomEvent('open-auth-modal', { detail: { intent: 'signup' } })); }}>
+              Commencer gratuitement
+              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
             </Button>
             <Button variant="outline" size="xl" asChild>
               <Link to="/products">Voir les produits</Link>

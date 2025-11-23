@@ -13,16 +13,48 @@ function sanitizeText(s: string) {
 }
 
 function extractImages(html: string) {
+  const ok = (u: string) => /\.(jpg|jpeg|png|webp)(\?|$)/i.test(u) && /(alicdn|alibaba|aliexpress|ae01)/i.test(u) && !/(sprite|logo|icon|gif)/i.test(u);
   const urls = new Set<string>();
   const og = textBetween(html, /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
-  if (og) urls.add(og);
-  const re = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(html))) {
-    const u = m[1];
-    if (u && /^https?:\/\//i.test(u)) urls.add(u);
+  if (og && ok(og)) urls.add(og);
+  const arrayProps = ["imagePathList","images","imageUrls","previewImages","thumbs","imageList"];
+  for (const prop of arrayProps) {
+    const re = new RegExp(`${prop}\\s*:\\s*\\[([^\\]]+)\\]`, 'i');
+    const m = html.match(re);
+    if (m && m[1]) {
+      const segment = m[1];
+      const q = segment.match(/"(https?:[^"\s]+)"/gi) || [];
+      for (const s of q) {
+        const u = s.replace(/^["']|["']$/g, "");
+        if (ok(u)) urls.add(u);
+      }
+    }
   }
-  return Array.from(urls);
+  const ldMatches = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
+  for (const blk of ldMatches) {
+    const m = blk.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+    const json = m && m[1] ? m[1].trim() : "";
+    if (json) {
+      try {
+        const obj = JSON.parse(json);
+        const imgs = Array.isArray(obj) ? obj : [obj];
+        for (const it of imgs) {
+          const iv = it?.image;
+          if (typeof iv === 'string') { if (ok(iv)) urls.add(iv); }
+          else if (Array.isArray(iv)) { for (const u of iv) if (typeof u === 'string' && ok(u)) urls.add(u); }
+        }
+      } catch (_) {}
+    }
+  }
+  const imgRe = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = imgRe.exec(html))) {
+    const u = m[1];
+    if (u && /^https?:\/\//i.test(u) && ok(u)) urls.add(u);
+  }
+  const anyUrls = Array.from(new Set((html.match(/https?:\/\/[^\s'"<>]+/gi) || [])));
+  for (const u of anyUrls) { if (ok(u)) urls.add(u); }
+  return Array.from(urls).slice(0, 8);
 }
 
 function extractPrice(html: string) {
@@ -72,13 +104,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const title = sanitizeText(
       textBetween(html, /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
+        textBetween(html, /"name"\s*:\s*"([^"]+)"/i) ||
         textBetween(html, /<title[^>]*>([^<]+)<\/title>/i)
     );
     const description = sanitizeText(
-      textBetween(html, /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)
+      textBetween(html, /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
+        textBetween(html, /"description"\s*:\s*"([^"]+)"/i)
     );
-    const mainImage = textBetween(html, /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
     const images = extractImages(html);
+    const mainImage = images[0] || textBetween(html, /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
     const price = extractPrice(html);
 
     try {
@@ -122,8 +156,8 @@ Prix détecté: ${price}`;
               title: parsed.title || title,
               description: parsed.description || description,
               price: parsed.price || price,
-              mainImage: parsed.mainImage || mainImage,
-              images: Array.isArray(parsed.images) && parsed.images.length ? parsed.images : images,
+              mainImage: parsed.mainImage || (Array.isArray(parsed.images) && parsed.images.length ? parsed.images[0] : mainImage),
+              images: Array.isArray(parsed.images) && parsed.images.length ? parsed.images.slice(0, 8) : images,
             };
             return res.status(200).json(merged);
           } catch (_) {

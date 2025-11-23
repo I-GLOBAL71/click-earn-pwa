@@ -18,7 +18,8 @@ export const AdminRoute = ({ children }: AdminRouteProps) => {
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    try { window.dispatchEvent(new CustomEvent('open-auth-modal', { detail: { intent: 'admin' } })); } catch {}
+    return <Navigate to="/home" replace />;
   }
 
   if (!isAdmin) {

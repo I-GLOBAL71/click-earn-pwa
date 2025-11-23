@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Onboarding from "./pages/Onboarding";
 import Home from "./pages/Home";
-import Auth from "./pages/Auth";
+ 
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import ProductDetail from "./pages/ProductDetail";
@@ -21,6 +21,7 @@ import { AdminCommissions } from "./pages/admin/AdminCommissions";
 import { AdminAnalytics } from "./pages/admin/AdminAnalytics";
 import { AdminPayments } from "./pages/admin/AdminPayments";
 import { AdminSettings } from "./pages/admin/AdminSettings";
+import { AdminOrders } from "./pages/admin/AdminOrders";
 
 const queryClient = new QueryClient();
 
@@ -33,7 +34,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Onboarding />} />
           <Route path="/home" element={<Home />} />
-          <Route path="/auth" element={<Auth />} />
+          
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/products" element={<Products />} />
           <Route path="/products/:id" element={<ProductDetail />} />
@@ -45,8 +46,9 @@ const App = () => (
             <Route path="ambassadors" element={<AdminAmbassadors />} />
             <Route path="products" element={<AdminProducts />} />
             <Route path="products/import" element={<AdminProductImport />} />
-            <Route path="commissions" element={<AdminCommissions />} />
-            <Route path="analytics" element={<AdminAnalytics />} />
+          <Route path="commissions" element={<AdminCommissions />} />
+          <Route path="orders" element={<AdminOrders />} />
+          <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="payments" element={<AdminPayments />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>

@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, Euro, MousePointerClick, ShoppingCart, Share2, Copy, Award } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { getAuth } from "firebase/auth";
 
 const stats = [
   {
@@ -43,14 +45,23 @@ const recentActivities = [
   { product: "Casque audio Premium", commission: "€32.00", date: "Hier", type: "recommendation" },
 ];
 
-const myOrders = [
-  { product: "Écouteurs Bluetooth Pro", savings: "€13.50", total: "€76.49", date: "Il y a 1 jour", status: "Livrée" },
-  { product: "Souris ergonomique Pro", savings: "€14.40", total: "€65.59", date: "Il y a 3 jours", status: "En transit" },
-  { product: "Webcam 4K Ultra HD", savings: "€22.50", total: "€127.49", date: "Il y a 1 semaine", status: "Livrée" },
-];
+const formatFcfa = (n: number) => `${Number(n||0).toLocaleString('fr-FR')} FCFA`;
 
 const Dashboard = () => {
   const referralLink = "https://rewardlink.com/r/abc123xyz";
+
+  const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+  const { data: myOrders = [] } = useQuery({
+    queryKey: ['my-orders'],
+    queryFn: async () => {
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) return [];
+      const resp = await fetch(`${apiBase}/api/orders`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!resp.ok) return [];
+      return resp.json();
+    }
+  });
 
   const copyLink = () => {
     navigator.clipboard.writeText(referralLink);
@@ -130,22 +141,26 @@ const Dashboard = () => {
                   ))}
                 </TabsContent>
                 <TabsContent value="orders" className="space-y-4 mt-4">
-                  {myOrders.map((order, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between rounded-lg border border-border p-4 transition-all hover:bg-accent/50"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium">{order.product}</p>
-                        <p className="text-sm text-muted-foreground">{order.date}</p>
+                  {myOrders.length === 0 ? (
+                    <div className="p-4 text-muted-foreground">Aucune commande pour l’instant</div>
+                  ) : (
+                    myOrders.map((order: any, index: number) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between rounded-lg border border-border p-4 transition-all hover:bg-accent/50"
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium">{order.invoice?.product?.name || order.product_id}</p>
+                          <p className="text-sm text-muted-foreground">{new Date(order.created_at).toLocaleString('fr-FR')}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">{formatFcfa(order.total_amount)}</p>
+                          <p className="text-xs text-secondary">Économisé: {formatFcfa(order.discount_amount)}</p>
+                          <p className="text-xs text-muted-foreground">{order.status}</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold">{order.total}</p>
-                        <p className="text-xs text-secondary">Économisé: {order.savings}</p>
-                        <p className="text-xs text-muted-foreground">{order.status}</p>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </TabsContent>
               </Tabs>
             </CardContent>

@@ -18,14 +18,64 @@ function cleanText(s: string) {
 
 function improveDescription(name: string, desc: string, lang: string) {
   const base = cleanText(desc);
-  const max = 800;
+  const max = 900;
   const short = base.length > max ? base.slice(0, max) + "…" : base;
-  const header = lang === "fr" ? "Points forts:" : "Key features:";
   const parts = short.split(/[.;\n]+/).map((p) => p.trim()).filter(Boolean);
-  const features = parts.slice(0, 5).map((p) => (p.length > 120 ? p.slice(0, 120) + "…" : p));
-  const lead = lang === "fr" ? `Découvrez ${name} conçu pour offrir performance et fiabilité.` : `Discover ${name} designed for performance and reliability.`;
+  const core = parts.filter((p) => p.length >= 8);
+  const features = core.slice(0, 7).map((p) => (p.length > 140 ? p.slice(0, 140) + "…" : p));
+  const hook = lang === "fr" ? `Boostez vos ventes avec ${name}.` : `Boost your results with ${name}.`;
+  const section1 = lang === "fr" ? "Accroche:" : "Hook:";
+  const section2 = lang === "fr" ? "Points clés:" : "Key points:";
+  const section3 = lang === "fr" ? "Spécifications essentielles:" : "Essential specs:";
   const bullets = features.map((f) => `• ${f}`).join("\n");
-  return `${lead}\n\n${header}\n${bullets}`;
+  const specsSrc = core.slice(7, 12);
+  const specs = (specsSrc.length ? specsSrc : features.slice(0, 3)).map((s) => `• ${s}`).join("\n");
+  return `${section1} ${hook}\n\n${section2}\n${bullets}\n\n${section3}\n${specs}`;
+}
+
+function marketingTitle(name: string, lang: string) {
+  const base = cleanText(name);
+  if (!base) return "";
+  const core = capitalizeWords(base);
+  if (lang === "fr") return `${core} – Performance et Fiabilité`;
+  return `${core} – Performance & Reliability`;
+}
+
+function safeJson(text: string) {
+  const t = String(text || "").trim();
+  try {
+    return JSON.parse(t);
+  } catch (_) {}
+  const start = t.indexOf("{");
+  const end = t.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    const sub = t.slice(start, end + 1);
+    try {
+      return JSON.parse(sub);
+    } catch (_) {}
+  }
+  return null;
+}
+
+function pickString(obj: any, keys: string[]): string {
+  for (const k of keys) {
+    const v = obj && typeof obj[k] === 'string' ? obj[k] : '';
+    if (v && v.trim()) return v.trim();
+  }
+  return '';
+}
+
+function ensureTitleChanged(original: string, candidate: string, lang: string) {
+  const o = cleanText(original).toLowerCase();
+  const c = cleanText(candidate).toLowerCase();
+  if (!c) return marketingTitle(original, lang);
+  if (c === o) {
+    const m = marketingTitle(original, lang);
+    if (cleanText(m).toLowerCase() !== o) return m;
+    const prefix = lang === 'fr' ? 'Nouveau: ' : 'New: ';
+    return prefix + capitalizeWords(original);
+  }
+  return candidate;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -66,10 +116,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (geminiEnabled && apiKey) {
         const prompt = language === 'fr'
-          ? `Réécris le titre et la description du produit en français, style e-commerce clair, concis, engageant. Garde factuel, pas de promesses exagérées. Retourne un JSON strict {"rewrittenTitle":"...","rewrittenDescription":"..."}.
+          ? `Tu es un copywriter e-commerce. Réécris le titre et la description en français avec structure marketing concise et persuasive. Retourne uniquement un JSON strict: {"rewrittenTitle":"...","rewrittenDescription":"..."}. Exigences: 1) Titre court, impactant. 2) Description avec 3 sections: "Accroche" (1 phrase), "Points clés" (5 à 7 puces avec •), "Spécifications essentielles" (3 à 5 puces). 3) Aucun texte hors JSON.
 Nom: ${productName}
 Description: ${productDescription}`
-          : `Rewrite the product title and description in clear, engaging e-commerce style. Keep factual, avoid exaggerated claims. Return strict JSON {"rewrittenTitle":"...","rewrittenDescription":"..."}.
+          : `You are an e-commerce copywriter. Rewrite the product title and description in English with a concise persuasive structure. Return only strict JSON: {"rewrittenTitle":"...","rewrittenDescription":"..."}. Requirements: 1) Short punchy title. 2) Description with 3 sections: "Hook" (1 sentence), "Key points" (5-7 bullets with •), "Essential specs" (3-5 bullets). 3) No text outside JSON.
 Name: ${productName}
 Description: ${productDescription}`;
         const respAi = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
@@ -83,18 +133,17 @@ Description: ${productDescription}`;
         if (respAi.ok) {
           const out = await respAi.json();
           const text = String(out?.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
-          try {
-            const parsed = JSON.parse(text);
-            const rewrittenTitle = parsed.rewrittenTitle || capitalizeWords(productName);
-            const rewrittenDescription = parsed.rewrittenDescription || improveDescription(rewrittenTitle, productDescription, language);
-            return res.status(200).json({ rewrittenTitle, rewrittenDescription });
-          } catch (_) {
-          }
+          const parsed = safeJson(text) || {};
+          const rtRaw = pickString(parsed, ['rewrittenTitle','title','name']);
+          const rdRaw = pickString(parsed, ['rewrittenDescription','description','content']);
+          const rt = ensureTitleChanged(productName, rtRaw || marketingTitle(productName, language), language);
+          const rd = rdRaw && rdRaw.trim() ? rdRaw : improveDescription(rt, productDescription, language);
+          return res.status(200).json({ rewrittenTitle: rt, rewrittenDescription: rd });
         }
       }
     } catch (_) {}
 
-    const rewrittenTitle = capitalizeWords(productName);
+    const rewrittenTitle = ensureTitleChanged(productName, marketingTitle(productName, language) || capitalizeWords(productName), language);
     const rewrittenDescription = improveDescription(rewrittenTitle, productDescription, language);
     return res.status(200).json({ rewrittenTitle, rewrittenDescription });
   } catch (e: any) {

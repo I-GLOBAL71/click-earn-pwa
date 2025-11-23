@@ -3,17 +3,46 @@ import { Button } from "@/components/ui/button";
 import { Zap, Settings, Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { AuthModal } from "@/components/auth/AuthModal";
+import { getAuth, isSignInWithEmailLink } from "firebase/auth";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const Header = () => {
   const location = useLocation();
   const isHomePage = location.pathname === "/";
   const { user, isAdmin, signOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [askEmailForLink, setAskEmailForLink] = useState(false);
+  const [lastIntent, setLastIntent] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const handleNavClick = () => {
     setIsOpen(false);
   };
+
+  useEffect(() => {
+    const onOpenAuth = (e: any) => {
+      setAskEmailForLink(false);
+      setAuthOpen(true);
+      const intent = e?.detail?.intent;
+      if (intent) {
+        setLastIntent(String(intent));
+        window.gtag?.('event', 'auth_modal_open', { intent });
+      }
+    };
+    window.addEventListener('open-auth-modal', onOpenAuth as any);
+    return () => window.removeEventListener('open-auth-modal', onOpenAuth as any);
+  }, []);
+
+  useEffect(() => {
+    const auth = getAuth();
+    if (isSignInWithEmailLink(auth, window.location.href)) {
+      setAskEmailForLink(true);
+      setAuthOpen(true);
+    }
+  }, [location.pathname]);
 
   const handleSignOut = () => {
     signOut();
@@ -21,6 +50,7 @@ export const Header = () => {
   };
 
   return (
+    <>
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center gap-2 transition-smooth hover:opacity-80">
@@ -36,12 +66,8 @@ export const Header = () => {
         <nav className="hidden md:flex items-center gap-4">
           {!user ? (
             <>
-              <Button variant="ghost" asChild>
-                <Link to="/auth">Connexion</Link>
-              </Button>
-              <Button variant="hero" size="lg" asChild>
-                <Link to="/auth?mode=signup">Commencer</Link>
-              </Button>
+              <Button variant="ghost" onClick={() => { setAskEmailForLink(false); setAuthOpen(true); setLastIntent('login'); window.gtag?.('event','auth_modal_open',{ intent: 'login' }); }}>Connexion</Button>
+              <Button variant="hero" size="lg" onClick={() => { setAskEmailForLink(false); setAuthOpen(true); setLastIntent('signup'); window.gtag?.('event','auth_modal_open',{ intent: 'signup' }); }}>Commencer</Button>
             </>
           ) : (
             <>
@@ -77,12 +103,8 @@ export const Header = () => {
             <nav className="flex flex-col gap-4 mt-8">
               {!user ? (
                 <>
-                  <Button variant="ghost" asChild className="justify-start">
-                    <Link to="/auth" onClick={handleNavClick}>Connexion</Link>
-                  </Button>
-                  <Button variant="hero" asChild>
-                    <Link to="/auth?mode=signup" onClick={handleNavClick}>Commencer</Link>
-                  </Button>
+                  <Button variant="ghost" className="justify-start" onClick={() => { setAskEmailForLink(false); setAuthOpen(true); setLastIntent('login'); handleNavClick(); window.gtag?.('event','auth_modal_open',{ intent: 'login' }); }}>Connexion</Button>
+                  <Button variant="hero" onClick={() => { setAskEmailForLink(false); setAuthOpen(true); setLastIntent('signup'); handleNavClick(); window.gtag?.('event','auth_modal_open',{ intent: 'signup' }); }}>Commencer</Button>
                 </>
               ) : (
                 <>
@@ -110,5 +132,7 @@ export const Header = () => {
         </Sheet>
       </div>
     </header>
+    <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} askEmailForLink={askEmailForLink} onSignedIn={() => { setAuthOpen(false); try { queryClient.invalidateQueries({ queryKey: ['is-ambassador'] }); queryClient.invalidateQueries({ queryKey: ['my-orders'] }); queryClient.invalidateQueries({ queryKey: ['products'] }); } catch {} if (lastIntent === 'signup') { window.gtag?.('event','sign_up', { method: 'modal' }); } else { window.gtag?.('event','login', { method: 'modal' }); } }} />
+    </>
   );
 };

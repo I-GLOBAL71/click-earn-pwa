@@ -21,13 +21,11 @@ export const CTASection = () => {
               <Button
                 variant="secondary"
                 size="xl"
-                asChild
                 className="bg-white text-primary hover:bg-white/90 shadow-glow"
+                onClick={() => { window.dispatchEvent(new CustomEvent('open-auth-modal', { detail: { intent: 'signup' } })); window.gtag?.('event','auth_modal_open',{ intent: 'signup' }); }}
               >
-                <Link to="/auth?mode=signup">
-                  Créer un compte gratuit
-                  <ArrowRight className="h-5 w-5" />
-                </Link>
+                Créer un compte gratuit
+                <ArrowRight className="h-5 w-5" />
               </Button>
               <Button
                 variant="outline"

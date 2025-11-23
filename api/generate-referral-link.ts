@@ -42,6 +42,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const sql = neon(dbUrl);
 
+    await sql`create table if not exists users (id text primary key, email text, full_name text, created_at timestamp with time zone default now())`;
+    const urows = await sql<{ id: string }[]>`select id from users where id = ${userId} limit 1`;
+    if (urows.length === 0) {
+      const email = String(decoded.email || "");
+      const name = String((decoded as any).name || (decoded as any).displayName || "");
+      try {
+        await sql`insert into users (id, email, full_name) values (${userId}, ${email || null}, ${name || null}) on conflict (id) do nothing`;
+      } catch (_) {}
+    }
+    const productRows = await sql<{ id: string }[]>`select id from products where id = ${productId} limit 1`;
+    if (productRows.length === 0) return res.status(400).json({ error: "Produit introuvable" });
+
     const existingLink = await sql<{
       id: string;
       code: string;
@@ -63,8 +75,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       code = generateCode();
     }
 
-    const inserted = await sql`insert into referral_links (user_id, product_id, code, clicks, conversions, total_commission) values (${userId}, ${productId}, ${code}, 0, 0, 0) returning id`;
-    if (inserted.length === 0) return res.status(500).json({ error: "Erreur création lien" });
+    let inserted;
+    try {
+      inserted = await sql`insert into referral_links (user_id, product_id, code, clicks, conversions, total_commission) values (${userId}, ${productId}, ${code}, 0, 0, 0) returning id`;
+    } catch (err: any) {
+      const m = String(err?.message || "");
+      if (/referral_links_user_id_fkey/i.test(m) || /foreign key constraint/i.test(m)) {
+        const email = String(decoded.email || "");
+        const name = String((decoded as any).name || (decoded as any).displayName || "");
+        try {
+          await sql`insert into users (id, email, full_name) values (${userId}, ${email || null}, ${name || null}) on conflict (id) do nothing`;
+          inserted = await sql`insert into referral_links (user_id, product_id, code, clicks, conversions, total_commission) values (${userId}, ${productId}, ${code}, 0, 0, 0) returning id`;
+        } catch (e: any) {
+          const mm = String(e?.message || "");
+          if (/foreign key constraint/i.test(mm)) return res.status(400).json({ error: "Profil utilisateur absent. Contactez le support." });
+          throw e;
+        }
+      }
+      throw err;
+    }
+    if (!inserted || inserted.length === 0) return res.status(500).json({ error: "Erreur création lien" });
 
     const referralUrl = `${appPublicUrl.replace(/\/$/, "")}/r/${code}?utm_source=ambassador&utm_medium=referral&utm_campaign=${productId}`;
     return res.status(200).json({ code, url: referralUrl, shortUrl: referralUrl });

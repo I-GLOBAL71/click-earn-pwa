@@ -8,7 +8,7 @@ import { z } from "zod";
 import { getAuth } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Save, Info } from "lucide-react";
+import { Loader2, Save, Info, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Table,
@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const commissionSchema = z.object({
   click_commission: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0, {
@@ -97,6 +98,54 @@ export const AdminCommissions = () => {
   const onSubmit = (data: CommissionFormData) => {
     updateSettingsMutation.mutate(data);
   };
+
+  const { data: categoryCommissions = [], isLoading: catLoading, refetch: refetchCat } = useQuery({
+    queryKey: ["category-commissions"],
+    queryFn: async () => {
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
+      const res = await fetch(`${apiBase}/api/admin/category-commissions`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+  });
+
+  const [cat, setCat] = React.useState("");
+  const [catType, setCatType] = React.useState("percentage");
+  const [catValue, setCatValue] = React.useState("");
+
+  const saveCatMutation = useMutation({
+    mutationFn: async () => {
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
+      const res = await fetch(`${apiBase}/api/admin/category-commissions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+        body: JSON.stringify({ category: cat.trim(), commission_type: catType, commission_value: parseFloat(catValue) })
+      });
+      if (!res.ok) throw new Error(await res.text());
+    },
+    onSuccess: () => { refetchCat(); setCat(""); setCatValue(""); toast({ title: "Règle enregistrée" }); },
+    onError: (e: any) => toast({ title: "Erreur", description: e?.message || "Impossible d'enregistrer", variant: "destructive" })
+  });
+
+  const removeCatMutation = useMutation({
+    mutationFn: async (category: string) => {
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
+      const res = await fetch(`${apiBase}/api/admin/category-commissions`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+        body: JSON.stringify({ category })
+      });
+      if (!res.ok) throw new Error(await res.text());
+    },
+    onSuccess: () => { refetchCat(); toast({ title: "Règle supprimée" }); },
+    onError: (e: any) => toast({ title: "Erreur", description: e?.message || "Impossible de supprimer", variant: "destructive" })
+  });
 
   if (isLoading) {
     return (
@@ -232,6 +281,56 @@ export const AdminCommissions = () => {
                   </TableRow>
                 </TableBody>
               </Table>
+            </div>
+
+            <div className="space-y-3">
+              <p className="font-medium">Règles par catégorie</p>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                <Input placeholder="Catégorie (ex: Audio)" value={cat} onChange={(e) => setCat(e.target.value)} />
+                <Select value={catType} onValueChange={setCatType}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Pourcentage (%)</SelectItem>
+                    <SelectItem value="fixed">Montant fixe (FCFA)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input placeholder={catType === 'percentage' ? '10' : '500'} value={catValue} onChange={(e) => setCatValue(e.target.value)} />
+                <Button onClick={() => saveCatMutation.mutate()} disabled={saveCatMutation.isPending || !cat || !catValue}>Enregistrer</Button>
+              </div>
+              <div className="rounded-md border">
+                {catLoading ? (
+                  <div className="p-4 text-muted-foreground">Chargement…</div>
+                ) : categoryCommissions.length === 0 ? (
+                  <div className="p-4 text-muted-foreground">Aucune règle</div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Catégorie</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Valeur</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {categoryCommissions.map((c: any) => (
+                        <TableRow key={c.category}>
+                          <TableCell className="font-medium">{c.category}</TableCell>
+                          <TableCell>{c.commission_type}</TableCell>
+                          <TableCell>{c.commission_type === 'percentage' ? `${c.commission_value}%` : `${Number(c.commission_value).toLocaleString('fr-FR')} FCFA`}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" onClick={() => removeCatMutation.mutate(c.category)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
