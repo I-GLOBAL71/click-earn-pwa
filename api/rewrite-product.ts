@@ -262,6 +262,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const productName = String(body?.productName || "").trim();
     const productDescription = String(body?.productDescription || "").trim();
     const language = String(body?.language || "fr").trim().toLowerCase();
+    const titlePrompt = String(body?.titlePrompt || "").trim();
+    const descriptionPrompt = String(body?.descriptionPrompt || "").trim();
     if (!productName || !productDescription) return res.status(400).json({ error: "Données manquantes" });
 
     const featuresPreview = extractFeatureCandidates(productDescription).slice(0, 7);
@@ -273,19 +275,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let geminiModel = "gemini-1.5-flash";
       let geminiTemperature = 0.5;
       let apiKey = process.env.GEMINI_API_KEY || "";
+      let defaultTitlePrompt = "";
+      let defaultDescriptionPrompt = "";
       if (sql) {
-        const s = await sql<{ key: string; value: string }[]>`select key, value from system_settings where key in ('gemini_enabled','gemini_model','gemini_temperature','gemini_api_key')`;
+        const s = await sql<{ key: string; value: string }[]>`select key, value from system_settings where key in ('gemini_enabled','gemini_model','gemini_temperature','gemini_api_key','default_title_prompt','default_description_prompt')`;
         const m = new Map(s.map((r) => [r.key, r.value]));
         geminiEnabled = String(m.get('gemini_enabled') || "false").toLowerCase() === 'true';
         geminiModel = String(m.get('gemini_model') || geminiModel);
         geminiTemperature = Number(m.get('gemini_temperature') || geminiTemperature);
         apiKey = String(m.get('gemini_api_key') || apiKey);
+        defaultTitlePrompt = String(m.get('default_title_prompt') || "");
+        defaultDescriptionPrompt = String(m.get('default_description_prompt') || "");
       }
 
       if (geminiEnabled && apiKey) {
-        const prompt = language === 'fr'
-          ? `Tu es un copywriter e-commerce. Objectif: produire un titre très accrocheur et une description structurée qui convainc les sceptiques. Retourne uniquement un JSON strict {"rewrittenTitle":"...","rewrittenDescription":"..."}. Exigences: 1) Le titre doit contenir une promesse forte ou bénéfice en très peu de mots. 2) La description commence par une section "Points forts" avec 5 à 7 puces (caractère •). 3) Ajoute ensuite une courte "Accroche" (1 phrase) et une section "Spécifications essentielles" avec 3 à 5 puces. 4) Évite toute mention technique inutile, écris naturel et orienté bénéfices. Données: Nom=${productName} Description=${productDescription}`
-          : `You are an e-commerce copywriter. Goal: produce a highly catchy title and a structured description that converts skeptics. Return strict JSON only {"rewrittenTitle":"...","rewrittenDescription":"..."}. Requirements: 1) Title contains a strong promise or benefit in few words. 2) Description starts with a "Key strengths" section with 5–7 bullets (•). 3) Then add a short "Hook" (1 sentence) and an "Essential specs" section with 3–5 bullets. 4) Avoid unnecessary technical terms, write naturally and benefit-driven. Data: Name=${productName} Description=${productDescription}`;
+        const baseFr = `Tu es un copywriter e-commerce. Objectif: produire un titre très accrocheur et une description structurée qui convainc les sceptiques. Retourne uniquement un JSON strict {"rewrittenTitle":"...","rewrittenDescription":"..."}. Exigences: 1) Le titre doit contenir une promesse forte ou bénéfice en très peu de mots. 2) La description commence par une section "Points forts" avec 5 à 7 puces (caractère •). 3) Ajoute ensuite une courte "Accroche" (1 phrase) et une section "Spécifications essentielles" avec 3 à 5 puces. 4) Évite toute mention technique inutile, écris naturel et orienté bénéfices.`;
+        const baseEn = `You are an e-commerce copywriter. Goal: produce a highly catchy title and a structured description that converts skeptics. Return strict JSON only {"rewrittenTitle":"...","rewrittenDescription":"..."}. Requirements: 1) Title contains a strong promise or benefit in few words. 2) Description starts with a "Key strengths" section with 5–7 bullets (•). 3) Then add a short "Hook" (1 sentence) and an "Essential specs" section with 3–5 bullets. 4) Avoid unnecessary technical terms, write naturally and benefit-driven.`;
+        const effectiveTitlePrompt = titlePrompt || defaultTitlePrompt;
+        const effectiveDescPrompt = descriptionPrompt || defaultDescriptionPrompt;
+        const customFr = `${effectiveTitlePrompt ? `\nConsignes spécifiques pour le titre: ${effectiveTitlePrompt}` : ''}${effectiveDescPrompt ? `\nConsignes spécifiques pour la description: ${effectiveDescPrompt}` : ''}`;
+        const customEn = `${effectiveTitlePrompt ? `\nSpecific title instructions: ${effectiveTitlePrompt}` : ''}${effectiveDescPrompt ? `\nSpecific description instructions: ${effectiveDescPrompt}` : ''}`;
+        const prompt = (language === 'fr' ? baseFr + customFr : baseEn + customEn) + `\nDonnées: Nom=${productName} Description=${productDescription}`;
         const respAi = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

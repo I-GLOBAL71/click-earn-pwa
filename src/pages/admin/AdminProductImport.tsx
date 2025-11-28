@@ -24,7 +24,8 @@ interface ImageData {
 export const AdminProductImport = () => {
   const [alibabaUrl, setAlibabaUrl] = useState("");
   const [loading, setLoading] = useState(false);
-  const [rewriting, setRewriting] = useState(false);
+  const [rewritingTitle, setRewritingTitle] = useState(false);
+  const [rewritingDesc, setRewritingDesc] = useState(false);
   const [productData, setProductData] = useState<any>(null);
   const [images, setImages] = useState<ImageData[]>([]);
   const [mainImageIndex, setMainImageIndex] = useState(0);
@@ -105,17 +106,43 @@ export const AdminProductImport = () => {
     }
   };
 
-  const handleRewriteWithAI = async () => {
+  const handleRewriteTitleWithAI = async () => {
     if (!formData.name || !formData.description) {
-      toast({
-        title: "Erreur",
-        description: "Le titre et la description sont requis",
-        variant: "destructive",
-      });
+      toast({ title: "Erreur", description: "Le titre et la description sont requis", variant: "destructive" });
       return;
     }
+    setRewritingTitle(true);
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
+      const resp = await fetch(`${apiBase}/api/rewrite-product`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productName: formData.name,
+          productDescription: formData.description,
+          language: 'fr'
+        })
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err?.error || 'Impossible de réécrire le nom');
+      }
+      const data = await resp.json();
+      setFormData({ ...formData, name: data.rewrittenTitle });
+      toast({ title: "Réécriture réussie", description: "Le nom du produit a été amélioré par l'IA" });
+    } catch (error: unknown) {
+      toast({ title: "Erreur de réécriture", description: (error instanceof Error ? error.message : String(error)) || "Impossible de réécrire le nom", variant: "destructive" });
+    } finally {
+      setRewritingTitle(false);
+    }
+  };
 
-    setRewriting(true);
+  const handleRewriteDescriptionWithAI = async () => {
+    if (!formData.name || !formData.description) {
+      toast({ title: "Erreur", description: "Le titre et la description sont requis", variant: "destructive" });
+      return;
+    }
+    setRewritingDesc(true);
     try {
       const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
       const resp = await fetch(`${apiBase}/api/rewrite-product`, {
@@ -132,24 +159,12 @@ export const AdminProductImport = () => {
         throw new Error(err?.error || 'Impossible de réécrire la description');
       }
       const data = await resp.json();
-      setFormData({
-        ...formData,
-        name: data.rewrittenTitle,
-        description: data.rewrittenDescription
-      });
-
-      toast({
-        title: "Réécriture réussie",
-        description: "Le titre et la description ont été améliorés par l'IA",
-      });
+      setFormData({ ...formData, description: data.rewrittenDescription });
+      toast({ title: "Réécriture réussie", description: "La description a été améliorée par l'IA" });
     } catch (error: unknown) {
-      toast({
-        title: "Erreur de réécriture",
-        description: (error instanceof Error ? error.message : String(error)) || "Impossible de réécrire la description",
-        variant: "destructive",
-      });
+      toast({ title: "Erreur de réécriture", description: (error instanceof Error ? error.message : String(error)) || "Impossible de réécrire la description", variant: "destructive" });
     } finally {
-      setRewriting(false);
+      setRewritingDesc(false);
     }
   };
 
@@ -335,13 +350,34 @@ export const AdminProductImport = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="name">Nom du produit *</Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label htmlFor="name">Nom du produit *</Label>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleRewriteTitleWithAI}
+                  disabled={rewritingTitle}
+                >
+                  {rewritingTitle ? (
+                    <>
+                      <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                      Réécriture...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3 w-3 mr-2" />
+                      Améliorer le nom
+                    </>
+                  )}
+                </Button>
+              </div>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="mt-2"
               />
+              
             </div>
 
             <div>
@@ -350,10 +386,10 @@ export const AdminProductImport = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={handleRewriteWithAI}
-                  disabled={rewriting}
+                  onClick={handleRewriteDescriptionWithAI}
+                  disabled={rewritingDesc}
                 >
-                  {rewriting ? (
+                  {rewritingDesc ? (
                     <>
                       <Loader2 className="h-3 w-3 mr-2 animate-spin" />
                       Réécriture...
@@ -361,7 +397,7 @@ export const AdminProductImport = () => {
                   ) : (
                     <>
                       <Sparkles className="h-3 w-3 mr-2" />
-                      Améliorer avec IA
+                      Améliorer la description
                     </>
                   )}
                 </Button>
@@ -373,6 +409,7 @@ export const AdminProductImport = () => {
                 rows={6}
                 className="resize-none"
               />
+              
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
