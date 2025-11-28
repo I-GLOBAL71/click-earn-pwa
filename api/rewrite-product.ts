@@ -42,11 +42,17 @@ function sanitizeName(name: string) {
     .replace(/\bproduct\b/ig, "")
     .replace(/\s+/g, " ")
     .trim();
-  const parts = base.split(/\s*-\s*/);
-  const head = parts[0] || base;
-  const toks = Array.from(new Set(tokens(head)));
-  const out = capitalizeWords(toks.join(" "));
-  return out.length > 70 ? out.slice(0, 68) + "…" : out;
+  const head = (base.split(/\s*-\s*/)[0] || base).toLowerCase();
+  const stop = new Set(["fashion","jewelry","designs","latest","simple","women","girl","buy","wholesale","product","alibaba","jewelri"]);
+  const prefer = new Set(["ring","rings","bague","gold","or","18k","dubai"]);
+  const toks = tokens(head);
+  const selected: string[] = [];
+  for (const t of toks) {
+    if (prefer.has(t) || (!stop.has(t) && selected.length < 6)) selected.push(t);
+  }
+  const dedup = Array.from(new Set(selected));
+  const out = capitalizeWords(dedup.join(" ")) || capitalizeWords(tokens(head).slice(0, 5).join(" "));
+  return out.length > 60 ? out.slice(0, 58) + "…" : out;
 }
 
 function shortBenefit(s: string) {
@@ -62,6 +68,7 @@ function extractFeatureCandidates(desc: string) {
   const sentences = raw.split(/[.!?;\n]+/).map((s) => s.trim()).filter((s) => s.length >= 6);
   const adjectives = new Set(["rapide","compact","robuste","puissant","premium","ergonomique","durable","garantie","polyvalent","intelligent","économique","efficace","fiable","performant","confortable"]);
   const banned = /(alibaba|aliexpress|buy|wholesale|product|latest)/i;
+  const sectionHeaders = /(points\s+forts|accroche|spécifications\s+essentielles)/i;
 
   type Cand = { t: string; score: number };
   const map = new Map<string, Cand>();
@@ -80,12 +87,12 @@ function extractFeatureCandidates(desc: string) {
   };
 
   for (const l of lines) {
-    if (banned.test(l)) continue;
+    if (banned.test(l) || sectionHeaders.test(l)) continue;
     if (/^[-*•]/.test(l)) push(l.replace(/^[-*•]\s*/, ""), 2);
     else if (/^[^:]{2,}\s*:\s*[^:]{2,}$/.test(l)) push(l.replace(/\s*:\s*/g, ": "), 1.5);
   }
 
-  for (const s of sentences) { if (!banned.test(s)) push(s, 1); }
+  for (const s of sentences) { if (!banned.test(s) && !sectionHeaders.test(s)) push(s, 1); }
 
   return Array.from(map.values())
     .sort((a, b) => b.score - a.score)
@@ -115,8 +122,20 @@ function improveDescription(name: string, desc: string, lang: string) {
   const base = cleanText(desc);
   const short = base.length > max ? base.slice(0, max) + "…" : base;
   const parts = short.split(/[.;\n]+/).map((p) => p.trim()).filter(Boolean);
-  const specsSrc = parts.filter((p) => p.length >= 6 && !ensureFeats.includes(p)).slice(0, 5);
-  const specs = (specsSrc.length ? specsSrc : ensureFeats.slice(0, 3)).map((s) => `• ${s}`).join("\n");
+  const bannedSpecs = /(alibaba|aliexpress|buy|wholesale|product|latest)/i;
+  const headerSpecs = /(points\s+forts|accroche|spécifications\s+essentielles)/i;
+  const specsMap = new Map<string, string>();
+  for (const p of parts) {
+    if (p.length < 6) continue;
+    if (ensureFeats.includes(p)) continue;
+    if (bannedSpecs.test(p)) continue;
+    if (headerSpecs.test(p)) continue;
+    const key = normalize(p);
+    if (!specsMap.has(key)) specsMap.set(key, cleanText(p));
+    if (specsMap.size >= 5) break;
+  }
+  const specsArr = Array.from(specsMap.values());
+  const specs = (specsArr.length ? specsArr : ensureFeats.slice(0, 3)).map((s) => `• ${s}`).join("\n");
 
   const hook = lang === "fr" ? "Faites la différence au quotidien." : "Make a difference daily.";
   const sectionBullets = lang === "fr" ? "Points forts:" : "Key strengths:";
@@ -226,7 +245,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const rtRaw = pickString(parsed, ['rewrittenTitle','title','name']);
           const rdRaw = pickString(parsed, ['rewrittenDescription','description','content']);
           const rt = ensureTitleChanged(productName, rtRaw || composeTitle(productName, featuresPreview, language), language, featuresPreview);
-          const rd = rdRaw && rdRaw.trim() ? rdRaw : improveDescription(rt, productDescription, language);
+          const rd = improveDescription(rt, rdRaw || productDescription, language);
           return res.status(200).json({ rewrittenTitle: rt, rewrittenDescription: rd });
         }
       }
