@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import shareImg from "@/assets/onboarding-share.jpg";
 import earnImg from "@/assets/onboarding-earn.jpg";
 import successImg from "@/assets/onboarding-success.jpg";
+import { useAuth } from "@/hooks/useAuth";
 
 const steps = [
   {
@@ -31,6 +32,13 @@ const steps = [
 const Onboarding = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading && user) {
+      navigate("/products", { replace: true });
+    }
+  }, [loading, user, navigate]);
 
   const step = steps[currentStep];
   const progress = ((currentStep + 1) / steps.length) * 100;
@@ -46,6 +54,10 @@ const Onboarding = () => {
   const handleSkip = () => {
     navigate("/products");
   };
+
+  if (!loading && user) {
+    return null;
+  }
 
   return (
     <div className="h-screen relative overflow-hidden flex flex-col">

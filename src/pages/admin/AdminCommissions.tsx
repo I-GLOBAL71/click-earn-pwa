@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,12 +22,18 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const commissionSchema = z.object({
-  click_commission: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0, {
-    message: "Le montant doit être un nombre positif",
-  }),
-  min_payout_amount: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0, {
-    message: "Le montant doit être un nombre positif",
-  }),
+  click_commission: z
+    .string()
+    .refine((val) => {
+      const n = Number(String(val).replace(',', '.'));
+      return !isNaN(n) && n >= 0;
+    }, { message: "Le montant doit être un nombre positif" }),
+  min_payout_amount: z
+    .string()
+    .refine((val) => {
+      const n = Number(String(val).replace(',', '.'));
+      return !isNaN(n) && n >= 0;
+    }, { message: "Le montant doit être un nombre positif" }),
 });
 
 type CommissionFormData = z.infer<typeof commissionSchema>;
@@ -40,8 +47,8 @@ export const AdminCommissions = () => {
     queryFn: async () => {
       const auth = getAuth();
       const token = await auth.currentUser?.getIdToken();
-      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
-      const res = await fetch(`${apiBase}/api/commission-settings`, {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${apiBase ? apiBase + '/api' : '/api'}/commission-settings`, {
         headers: { Authorization: token ? `Bearer ${token}` : '' },
       });
       if (!res.ok) throw new Error(await res.text());
@@ -65,13 +72,13 @@ export const AdminCommissions = () => {
   const updateSettingsMutation = useMutation({
     mutationFn: async (data: CommissionFormData) => {
       const updates = [
-        { key: "click_commission", value: parseFloat(data.click_commission) },
-        { key: "min_payout_amount", value: parseFloat(data.min_payout_amount) },
+        { key: "click_commission", value: parseFloat(String(data.click_commission).replace(',', '.')) },
+        { key: "min_payout_amount", value: parseFloat(String(data.min_payout_amount).replace(',', '.')) },
       ];
       const auth = getAuth();
       const token = await auth.currentUser?.getIdToken();
-      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
-      const res = await fetch(`${apiBase}/api/commission-settings`, {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${apiBase ? apiBase + '/api' : '/api'}/commission-settings`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
         body: JSON.stringify({ updates }),
@@ -104,8 +111,8 @@ export const AdminCommissions = () => {
     queryFn: async () => {
       const auth = getAuth();
       const token = await auth.currentUser?.getIdToken();
-      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
-      const res = await fetch(`${apiBase}/api/admin/category-commissions`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${apiBase ? apiBase + '/api' : '/api'}/admin/category-commissions`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     }
@@ -119,8 +126,8 @@ export const AdminCommissions = () => {
     mutationFn: async () => {
       const auth = getAuth();
       const token = await auth.currentUser?.getIdToken();
-      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
-      const res = await fetch(`${apiBase}/api/admin/category-commissions`, {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${apiBase ? apiBase + '/api' : '/api'}/admin/category-commissions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
         body: JSON.stringify({ category: cat.trim(), commission_type: catType, commission_value: parseFloat(catValue) })
@@ -135,8 +142,8 @@ export const AdminCommissions = () => {
     mutationFn: async (category: string) => {
       const auth = getAuth();
       const token = await auth.currentUser?.getIdToken();
-      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
-      const res = await fetch(`${apiBase}/api/admin/category-commissions`, {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${apiBase ? apiBase + '/api' : '/api'}/admin/category-commissions`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
         body: JSON.stringify({ category })

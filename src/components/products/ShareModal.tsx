@@ -94,7 +94,7 @@ export const ShareModal = ({ isOpen, onClose, productName, referralUrl, commissi
         <DialogHeader>
           <DialogTitle className="text-xl font-bold leading-tight">Partager & Gagner</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            Partage <span className="font-semibold text-primary">"{productName}"</span> et touche <span className="font-semibold text-secondary">{commission}</span> par vente.
+            Partage <span className="font-semibold text-primary">"{productName}"</span> et touche <span className="font-semibold text-secondary">{commission}</span> par commande.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">

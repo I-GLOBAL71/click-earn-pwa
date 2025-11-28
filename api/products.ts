@@ -20,6 +20,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (dbUrl) {
       const sql = neon(dbUrl);
       const id = String((req.query?.id as string) || "").trim();
+      const clickSettingRows = await sql<any[]>`select value from commission_settings where key = 'click_commission' limit 1`;
+      const click_commission = Number((clickSettingRows[0]?.value ?? 0));
 
       if (id) {
         await sql`create table if not exists product_images (id uuid primary key default gen_random_uuid(), product_id uuid references products(id) on delete cascade, url text not null, is_main boolean default false)`;
@@ -27,12 +29,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (rows.length === 0) return res.status(404).json({ error: "Produit introuvable" });
         const imgs = await sql`select url, is_main from product_images where product_id = ${id} order by is_main desc, id asc`;
         const images = imgs.map(i => i.url);
-        const product = { ...rows[0], images };
+        const product = { ...rows[0], images, click_commission };
         return res.status(200).json(product);
       }
 
-      const rows = await sql`select id, name, description, category, price, commission_type, commission_value, image_url, stock_quantity from products where is_active = true order by created_at desc`;
-      return res.status(200).json(rows);
+      const rows = await sql<any[]>`select id, name, description, category, price, commission_type, commission_value, image_url, stock_quantity from products where is_active = true order by created_at desc`;
+      const withClick = rows.map((r) => ({ ...r, click_commission }));
+      return res.status(200).json(withClick);
     }
 
     return res.status(500).json({ error: "NEON_DATABASE_URL requis" });

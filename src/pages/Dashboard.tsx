@@ -50,7 +50,7 @@ const formatFcfa = (n: number) => `${Number(n||0).toLocaleString('fr-FR')} FCFA`
 const Dashboard = () => {
   const referralLink = "https://rewardlink.com/r/abc123xyz";
 
-  const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+  const apiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'https://click-earn-pwa.vercel.app' : '');
   const { data: myOrders = [] } = useQuery({
     queryKey: ['my-orders'],
     queryFn: async () => {

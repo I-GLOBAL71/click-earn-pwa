@@ -60,6 +60,7 @@ const ProductDetail = () => {
   const discountedUnit = Math.max(0.01, unitPrice - discountPerUnit);
   const totalDue = discountedUnit * quantity;
   const savings = discountPerUnit * quantity;
+  
 
   const features = useMemo(() => {
     const desc = String(product?.description || "");
@@ -238,6 +239,7 @@ const ProductDetail = () => {
                   {!ambassador && (
                     <p className="text-xs text-muted-foreground text-center">Seuls les ambassadeurs peuvent commander à prix réduit</p>
                   )}
+                  
                 </div>
               </CardContent>
             </Card>
