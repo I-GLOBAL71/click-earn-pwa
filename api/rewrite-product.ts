@@ -20,6 +20,35 @@ function normalize(s: string) {
   return cleanText(s).toLowerCase().replace(/[^a-z0-9àâäéèêëîïôöùûüç\s]/gi, "").replace(/\s+/g, " ").trim();
 }
 
+function tokens(s: string) {
+  return normalize(s).split(/\s+/).filter(Boolean);
+}
+
+function jaccard(a: string, b: string) {
+  const ta = new Set(tokens(a));
+  const tb = new Set(tokens(b));
+  if (ta.size === 0 && tb.size === 0) return 1;
+  let inter = 0;
+  for (const t of ta) if (tb.has(t)) inter++;
+  const union = ta.size + tb.size - inter;
+  return union === 0 ? 0 : inter / union;
+}
+
+function sanitizeName(name: string) {
+  const base = cleanText(name)
+    .replace(/-\s*buy[^-]*$/i, "")
+    .replace(/on\s+alibaba\.?com/ig, "")
+    .replace(/wholesale|latest|simple\b/ig, "")
+    .replace(/\bproduct\b/ig, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const parts = base.split(/\s*-\s*/);
+  const head = parts[0] || base;
+  const toks = Array.from(new Set(tokens(head)));
+  const out = capitalizeWords(toks.join(" "));
+  return out.length > 70 ? out.slice(0, 68) + "…" : out;
+}
+
 function shortBenefit(s: string) {
   const txt = cleanText(s);
   const words = txt.split(/\s+/).slice(0, 8).join(" ");
@@ -32,6 +61,7 @@ function extractFeatureCandidates(desc: string) {
   const lines = raw.split(/\n+/).map((l) => l.trim()).filter(Boolean);
   const sentences = raw.split(/[.!?;\n]+/).map((s) => s.trim()).filter((s) => s.length >= 6);
   const adjectives = new Set(["rapide","compact","robuste","puissant","premium","ergonomique","durable","garantie","polyvalent","intelligent","économique","efficace","fiable","performant","confortable"]);
+  const banned = /(alibaba|aliexpress|buy|wholesale|product|latest)/i;
 
   type Cand = { t: string; score: number };
   const map = new Map<string, Cand>();
@@ -50,11 +80,12 @@ function extractFeatureCandidates(desc: string) {
   };
 
   for (const l of lines) {
+    if (banned.test(l)) continue;
     if (/^[-*•]/.test(l)) push(l.replace(/^[-*•]\s*/, ""), 2);
     else if (/^[^:]{2,}\s*:\s*[^:]{2,}$/.test(l)) push(l.replace(/\s*:\s*/g, ": "), 1.5);
   }
 
-  for (const s of sentences) push(s, 1);
+  for (const s of sentences) { if (!banned.test(s)) push(s, 1); }
 
   return Array.from(map.values())
     .sort((a, b) => b.score - a.score)
@@ -62,15 +93,14 @@ function extractFeatureCandidates(desc: string) {
 }
 
 function composeTitle(name: string, features: string[], lang: string) {
-  const base = cleanText(name);
-  const core = capitalizeWords(base);
+  const core = sanitizeName(name);
   const top = features[0] ? shortBenefit(features[0]) : "Performance et Fiabilité";
   if (lang === "fr") return `${core} – ${top}`;
   return `${core} – ${top}`;
 }
 
 function improveDescription(name: string, desc: string, lang: string) {
-  const feats = extractFeatureCandidates(desc);
+  const feats = extractFeatureCandidates(desc).filter((f) => jaccard(f, name) < 0.6);
   const topFeats = feats.slice(0, 7);
   const ensureFeats = topFeats.length ? topFeats : [
     "Qualité de fabrication fiable",
@@ -88,7 +118,7 @@ function improveDescription(name: string, desc: string, lang: string) {
   const specsSrc = parts.filter((p) => p.length >= 6 && !ensureFeats.includes(p)).slice(0, 5);
   const specs = (specsSrc.length ? specsSrc : ensureFeats.slice(0, 3)).map((s) => `• ${s}`).join("\n");
 
-  const hook = lang === "fr" ? `Faites la différence avec ${name}.` : `Make a difference with ${name}.`;
+  const hook = lang === "fr" ? "Faites la différence au quotidien." : "Make a difference daily.";
   const sectionBullets = lang === "fr" ? "Points forts:" : "Key strengths:";
   const sectionHook = lang === "fr" ? "Accroche:" : "Hook:";
   const sectionSpecs = lang === "fr" ? "Spécifications essentielles:" : "Essential specs:";
@@ -124,11 +154,12 @@ function ensureTitleChanged(original: string, candidate: string, lang: string, f
   const o = cleanText(original).toLowerCase();
   const c = cleanText(candidate).toLowerCase();
   if (!c) return composeTitle(original, features, lang);
-  if (c === o) {
+  if (c === o || jaccard(original, candidate) > 0.8) {
     const m = composeTitle(original, features, lang);
     if (cleanText(m).toLowerCase() !== o) return m;
     const prefix = lang === 'fr' ? 'Nouveau: ' : 'New: ';
-    return prefix + capitalizeWords(original);
+    const s = sanitizeName(original);
+    return prefix + s;
   }
   return candidate;
 }
