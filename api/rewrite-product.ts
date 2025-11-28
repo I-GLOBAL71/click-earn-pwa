@@ -101,48 +101,104 @@ function extractFeatureCandidates(desc: string) {
 
 function composeTitle(name: string, features: string[], lang: string) {
   const core = sanitizeName(name);
-  const top = features[0] ? shortBenefit(features[0]) : "Performance et Fiabilité";
-  if (lang === "fr") return `${core} – ${top}`;
-  return `${core} – ${top}`;
+  const n = normalize(name + " " + features.join(" "));
+  const has = (w: string) => n.includes(w);
+  let type = "Produit";
+  if (has("bague") || has("ring") || has("rings")) type = "Bague";
+  else if (has("collier") || has("necklace")) type = "Collier";
+  else if (has("bracelet")) type = "Bracelet";
+  else if (has("earring") || has("boucles") || has("earrings")) type = "Boucles d'oreilles";
+  let material = "";
+  if ((has("18k") || has("18 k")) && (has("or") || has("gold"))) material = "Or 18K";
+  else if (has("or") || has("gold")) material = "Or";
+  else if (has("plaqu") || has("plated") || has("laminated")) material = "Plaqué Or";
+  else if (has("argent") || has("silver")) material = "Argent";
+  let gem = "";
+  if (has("zircon") || has("cubic")) gem = "Zircon";
+  else if (has("perle") || has("pearl")) gem = "Perle";
+  let style = "";
+  if (has("dubai")) style = "Style Dubai";
+  else if (has("minimal") || has("minimalist")) style = "Style minimaliste";
+  else if (has("classique") || has("classic")) style = "Style classique";
+  const attrs = [material, gem, style].filter(Boolean).join(" ").trim();
+  const base = type !== "Produit" ? `${type} ${attrs ? attrs + " " : ""}${core}` : `${core}`;
+  const top = features[0] ? shortBenefit(features[0]) : (lang === "fr" ? "Élégance au quotidien" : "Daily elegance");
+  const out = `${capitalizeWords(base)} – ${top}`.replace(/\s+/g, " ").trim();
+  return out.length > 80 ? out.slice(0, 78) + "…" : out;
 }
 
 function improveDescription(name: string, desc: string, lang: string) {
-  const feats = extractFeatureCandidates(desc).filter((f) => jaccard(f, name) < 0.6);
-  const topFeats = feats.slice(0, 7);
-  const ensureFeats = topFeats.length ? topFeats : [
-    "Qualité de fabrication fiable",
-    "Conçu pour durer au quotidien",
-    "Excellente valeur pour votre budget",
-    "Facile à utiliser et à installer",
-    "Service et support disponibles"
-  ];
-  const bullets = ensureFeats.map((f) => `• ${f}`).join("\n");
+  const n = normalize(name + " " + desc);
+  const has = (w: string) => n.includes(w);
+  let type = "Produit";
+  if (has("bague") || has("ring") || has("rings")) type = "Bague";
+  else if (has("collier") || has("necklace")) type = "Collier";
+  else if (has("bracelet")) type = "Bracelet";
+  else if (has("earring") || has("boucles") || has("earrings")) type = "Boucles d'oreilles";
+  let material = "";
+  if ((has("18k") || has("18 k")) && (has("or") || has("gold"))) material = "Or 18K";
+  else if (has("or") || has("gold")) material = "Or";
+  else if (has("plaqu") || has("plated") || has("laminated")) material = "Plaqué Or";
+  else if (has("argent") || has("silver")) material = "Argent";
+  let gem = "";
+  if (has("zircon") || has("cubic")) gem = "Zircon";
+  else if (has("perle") || has("pearl")) gem = "Perle";
+  let style = "";
+  if (has("dubai")) style = "Style Dubai";
+  else if (has("minimal") || has("minimalist")) style = "Style minimaliste";
+  else if (has("classique") || has("classic")) style = "Style classique";
+  const audience = has("women") || has("femme") || has("girl") ? "Femme" : has("men") || has("homme") || has("boy") ? "Homme" : "";
+  const attrs = { type, material, gem, style, audience };
+
+  const featsRaw = extractFeatureCandidates(desc).filter((f) => jaccard(f, name) < 0.6);
+  const curated: string[] = [];
+  if (attrs.material) curated.push(`${attrs.material} pour un éclat durable`);
+  if (attrs.gem) curated.push(`${attrs.gem} scintillant`);
+  if (attrs.style) curated.push(`${attrs.style} pour un look raffiné`);
+  curated.push("Confort au porté, pensé pour le quotidien");
+  curated.push("Design soigné, idéal en cadeau");
+  const allFeats = Array.from(new Set([...curated, ...featsRaw])).filter((s) => s && s.length >= 6).slice(0, 7);
+  const bullets = allFeats.map((f) => `• ${cleanText(f)}`).join("\n");
 
   const max = 900;
   const base = cleanText(desc);
   const short = base.length > max ? base.slice(0, max) + "…" : base;
   const parts = short.split(/[.;\n]+/).map((p) => p.trim()).filter(Boolean);
   const bannedSpecs = /(alibaba|aliexpress|buy|wholesale|product|latest)/i;
-  const headerSpecs = /(points\s+forts|accroche|spécifications\s+essentielles)/i;
+  const headerSpecs = /(points\s+forts|accroche|spécifications\s+essentielles|description)/i;
   const specsMap = new Map<string, string>();
+  const specSeeds: string[] = [];
+  if (attrs.material) specSeeds.push(`Matériau: ${attrs.material}`);
+  if (attrs.gem) specSeeds.push(`Pierre: ${attrs.gem}`);
+  if (attrs.style) specSeeds.push(`Style: ${attrs.style}`);
+  if (attrs.audience) specSeeds.push(`Public: ${attrs.audience}`);
+  for (const s of specSeeds) specsMap.set(normalize(s), s);
   for (const p of parts) {
     if (p.length < 6) continue;
-    if (ensureFeats.includes(p)) continue;
     if (bannedSpecs.test(p)) continue;
     if (headerSpecs.test(p)) continue;
     const key = normalize(p);
     if (!specsMap.has(key)) specsMap.set(key, cleanText(p));
-    if (specsMap.size >= 5) break;
+    if (specsMap.size >= 6) break;
   }
   const specsArr = Array.from(specsMap.values());
-  const specs = (specsArr.length ? specsArr : ensureFeats.slice(0, 3)).map((s) => `• ${s}`).join("\n");
+  const specs = specsArr.map((s) => (s.startsWith("Matériau:") || s.startsWith("Style:") || s.startsWith("Pierre:") || s.startsWith("Public:") ? `• ${s}` : `• ${s}`)).slice(0, 6).join("\n");
 
-  const hook = lang === "fr" ? "Faites la différence au quotidien." : "Make a difference daily.";
+  const hook = lang === "fr"
+    ? (attrs.material || attrs.gem || attrs.style ? `${attrs.type !== "Produit" ? attrs.type + ": " : ""}Élégance assurée, pensée pour sublimer chaque instant.` : "Faites la différence au quotidien.")
+    : (attrs.material || attrs.gem || attrs.style ? "Elegance guaranteed, crafted to elevate every moment." : "Make a difference daily.");
+
+  const who = attrs.audience ? `${attrs.audience}s` : "vous";
+  const body = lang === "fr"
+    ? `${capitalizeWords(attrs.type !== "Produit" ? attrs.type : "Article")} ${attrs.material ? `en ${attrs.material.toLowerCase()} ` : ""}${attrs.gem ? `avec ${attrs.gem.toLowerCase()} ` : ""}${attrs.style ? `${attrs.style.toLowerCase()} ` : ""}qui apporte une touche d'éclat à vos tenues. Idéal pour le quotidien comme les grandes occasions, il combine confort et finition soignée pour un rendu irréprochable. Offrez-le ou offrez-vous un accessoire qui marque les esprits.`
+    : `A refined piece that elevates your look, perfect for daily wear and special occasions. Comfortable and carefully finished for a flawless result.`;
+
   const sectionBullets = lang === "fr" ? "Points forts:" : "Key strengths:";
   const sectionHook = lang === "fr" ? "Accroche:" : "Hook:";
   const sectionSpecs = lang === "fr" ? "Spécifications essentielles:" : "Essential specs:";
+  const sectionDesc = lang === "fr" ? "Description:" : "Description:";
 
-  return `${sectionBullets}\n${bullets}\n\n${sectionHook} ${hook}\n\n${sectionSpecs}\n${specs}`;
+  return `${sectionHook} ${hook}\n\n${sectionDesc}\n${body}\n\n${sectionBullets}\n${bullets}\n\n${sectionSpecs}\n${specs}`.replace(/\s+\n/g, "\n");
 }
 
 function safeJson(text: string) {
