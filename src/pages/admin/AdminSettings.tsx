@@ -85,8 +85,12 @@ export const AdminSettings = () => {
       setGeminiModel(aiSettings.gemini_model || "gemini-1.5-flash");
       setGeminiTemperature(aiSettings.gemini_temperature || "0.2");
       setGeminiMasked(aiSettings.gemini_api_key_masked || "");
-      setDefaultTitlePrompt(aiSettings.default_title_prompt || "");
-      setDefaultDescriptionPrompt(aiSettings.default_description_prompt || "");
+      const seedTitle = "À partir de {name} et des signaux {features}, rédiger un titre ultra-accrocheur en ≤12 mots, bénéfice clair, verbe d'action, ton premium accessible, sans jargon ni marque; mettre la promesse et la différenciation.";
+      const seedDesc = "À partir de {name} et {description}, écrire une description persuasive et claire en {lang}: 1) Accroche unique en 1 phrase; 2) 5–7 puces (•) de bénéfices concrets centrés utilisateur, inspirées de {features} quand pertinent, phrases courtes, sans jargon; 3) Section 'Spécifications essentielles' en 3–5 puces factuelles; 4) Ton premium accessible, inclusif; 5) Éviter toute mention de la source ou termes techniques inutiles.";
+      const dpTitle = String(aiSettings.default_title_prompt || "").trim();
+      const dpDesc = String(aiSettings.default_description_prompt || "").trim();
+      setDefaultTitlePrompt(dpTitle || seedTitle);
+      setDefaultDescriptionPrompt(dpDesc || seedDesc);
     }
   }, [aiSettings]);
 
@@ -255,6 +259,7 @@ export const AdminSettings = () => {
                 placeholder="Ex: Mettre en avant la promesse principale, max 10 mots."
                 className="mt-2"
               />
+              <p className="text-xs text-muted-foreground mt-1">Variables disponibles: {"{name}"}, {"{description}"}, {"{lang}"}, {"{features}"}</p>
             </div>
             <div>
               <Label>Prompt par défaut pour la description</Label>
@@ -265,6 +270,7 @@ export const AdminSettings = () => {
                 placeholder="Ex: Accroche + 5–7 puces orientées bénéfices (•), éviter jargon."
                 className="mt-2"
               />
+              <p className="text-xs text-muted-foreground mt-1">Variables disponibles: {"{name}"}, {"{description}"}, {"{lang}"}, {"{features}"}</p>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

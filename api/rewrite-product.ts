@@ -225,6 +225,19 @@ function pickString(obj: Record<string, unknown>, keys: string[]): string {
   return '';
 }
 
+function applyTemplate(s: string, ctx: Record<string, string>) {
+  const text = String(s || "");
+  if (!text.trim()) return text;
+  const keys = Object.keys(ctx);
+  let out = text;
+  for (const k of keys) {
+    const val = String(ctx[k] || "");
+    const re = new RegExp(`\\{\\{\\s*${k}\\s*\\}}|\\{\\s*${k}\\s*\\}`, 'gi');
+    out = out.replace(re, val);
+  }
+  return out;
+}
+
 function ensureTitleChanged(original: string, candidate: string, lang: string, features: string[]) {
   const o = cleanText(original).toLowerCase();
   const c = cleanText(candidate).toLowerCase();
@@ -277,6 +290,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let apiKey = process.env.GEMINI_API_KEY || "";
       let defaultTitlePrompt = "";
       let defaultDescriptionPrompt = "";
+      const seedTitleFr = "À partir de {name} et des signaux {features}, rédiger un titre ultra-accrocheur en ≤12 mots, bénéfice clair, verbe d'action, ton premium accessible, sans jargon ni marque; mettre la promesse et la différenciation.";
+      const seedTitleEn = "Using {name} and signals {features}, write a highly catchy title ≤12 words, benefit-first, action verb, premium yet accessible tone, no jargon or brand; highlight promise and differentiation.";
+      const seedDescFr = "À partir de {name} et {description}, écrire une description persuasive et claire en {lang}: 1) Accroche 1 phrase; 2) 5–7 puces (•) de bénéfices concrets centrés utilisateur, inspirées de {features} quand pertinent, phrases courtes, sans jargon; 3) Section 'Spécifications essentielles' 3–5 puces factuelles; 4) Ton premium accessible; 5) Éviter toute mention de la source ou termes techniques inutiles.";
+      const seedDescEn = "Based on {name} and {description}, write a persuasive, clear description in {lang}: 1) One-sentence hook; 2) 5–7 bullets (•) of concrete user benefits, inspired by {features} when relevant, short sentences, no jargon; 3) 'Essential specs' section with 3–5 factual bullets; 4) Premium yet accessible tone; 5) Avoid source mentions or unnecessary technical terms.";
       if (sql) {
         const s = await sql<{ key: string; value: string }[]>`select key, value from system_settings where key in ('gemini_enabled','gemini_model','gemini_temperature','gemini_api_key','default_title_prompt','default_description_prompt')`;
         const m = new Map(s.map((r) => [r.key, r.value]));
@@ -291,10 +308,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (geminiEnabled && apiKey) {
         const baseFr = `Tu es un copywriter e-commerce. Objectif: produire un titre très accrocheur et une description structurée qui convainc les sceptiques. Retourne uniquement un JSON strict {"rewrittenTitle":"...","rewrittenDescription":"..."}. Exigences: 1) Le titre doit contenir une promesse forte ou bénéfice en très peu de mots. 2) La description commence par une section "Points forts" avec 5 à 7 puces (caractère •). 3) Ajoute ensuite une courte "Accroche" (1 phrase) et une section "Spécifications essentielles" avec 3 à 5 puces. 4) Évite toute mention technique inutile, écris naturel et orienté bénéfices.`;
         const baseEn = `You are an e-commerce copywriter. Goal: produce a highly catchy title and a structured description that converts skeptics. Return strict JSON only {"rewrittenTitle":"...","rewrittenDescription":"..."}. Requirements: 1) Title contains a strong promise or benefit in few words. 2) Description starts with a "Key strengths" section with 5–7 bullets (•). 3) Then add a short "Hook" (1 sentence) and an "Essential specs" section with 3–5 bullets. 4) Avoid unnecessary technical terms, write naturally and benefit-driven.`;
-        const effectiveTitlePrompt = titlePrompt || defaultTitlePrompt;
-        const effectiveDescPrompt = descriptionPrompt || defaultDescriptionPrompt;
-        const customFr = `${effectiveTitlePrompt ? `\nConsignes spécifiques pour le titre: ${effectiveTitlePrompt}` : ''}${effectiveDescPrompt ? `\nConsignes spécifiques pour la description: ${effectiveDescPrompt}` : ''}`;
-        const customEn = `${effectiveTitlePrompt ? `\nSpecific title instructions: ${effectiveTitlePrompt}` : ''}${effectiveDescPrompt ? `\nSpecific description instructions: ${effectiveDescPrompt}` : ''}`;
+        const effectiveTitlePrompt = (titlePrompt || defaultTitlePrompt || (language === 'fr' ? seedTitleFr : seedTitleEn));
+        const effectiveDescPrompt = (descriptionPrompt || defaultDescriptionPrompt || (language === 'fr' ? seedDescFr : seedDescEn));
+        const ctx = { name: productName, description: productDescription, lang: language, features: featuresPreview.join(' | ') };
+        const effTitle = applyTemplate(effectiveTitlePrompt, ctx);
+        const effDesc = applyTemplate(effectiveDescPrompt, ctx);
+        const customFr = `${effTitle ? `\nConsignes spécifiques pour le titre: ${effTitle}` : ''}${effDesc ? `\nConsignes spécifiques pour la description: ${effDesc}` : ''}`;
+        const customEn = `${effTitle ? `\nSpecific title instructions: ${effTitle}` : ''}${effDesc ? `\nSpecific description instructions: ${effDesc}` : ''}`;
         const prompt = (language === 'fr' ? baseFr + customFr : baseEn + customEn) + `\nDonnées: Nom=${productName} Description=${productDescription}`;
         const respAi = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
           method: 'POST',
