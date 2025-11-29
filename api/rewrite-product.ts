@@ -67,7 +67,7 @@ function extractFeatureCandidates(desc: string) {
   const lines = raw.split(/\n+/).map((l) => l.trim()).filter(Boolean);
   const sentences = raw.split(/[.!?;\n]+/).map((s) => s.trim()).filter((s) => s.length >= 6);
   const adjectives = new Set(["rapide","compact","robuste","puissant","premium","ergonomique","durable","garantie","polyvalent","intelligent","économique","efficace","fiable","performant","confortable"]);
-  const banned = /(alibaba|aliexpress|buy|wholesale|product|latest)/i;
+  const banned = /(alibaba|aliexpress|buy|wholesale|product|latest|gold\s*supplier)/i;
   const sectionHeaders = /(points\s+forts|accroche|spécifications\s+essentielles)/i;
 
   type Cand = { t: string; score: number };
@@ -147,6 +147,7 @@ function improveDescription(name: string, desc: string, lang: string) {
   if (has("dubai")) style = "Style Dubai";
   else if (has("minimal") || has("minimalist")) style = "Style minimaliste";
   else if (has("classique") || has("classic")) style = "Style classique";
+  if (type === "Produit") { material = ""; gem = ""; style = ""; }
   const audience = has("women") || has("femme") || has("girl") ? "Femme" : has("men") || has("homme") || has("boy") ? "Homme" : "";
   const attrs = { type, material, gem, style, audience };
 
@@ -335,7 +336,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const customEn = `${effTitle ? `\nSpecific title instructions: ${effTitle}` : ''}${effDesc ? `\nSpecific description instructions: ${effDesc}` : ''}\nOutput language: en.`;
         const prompt = (language === 'fr' ? baseFr + customFr : baseEn + customEn) + `\nData: name=${productName} description=${productDescription}`;
         log('prompt', { length: prompt.length, head: prompt.slice(0, 300) });
-        const respAi = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+        const allowedModels = new Set(['gemini-1.5-flash','gemini-1.5-pro','gemini-1.0-pro']);
+        const modelToUse = allowedModels.has(geminiModel) ? geminiModel : 'gemini-1.5-flash';
+        if (!allowedModels.has(geminiModel)) debugReason = 'invalidModel';
+        let endpointUsed = 'v1beta';
+        let respAi = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelToUse)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -343,7 +348,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             generationConfig: { temperature: geminiTemperature, maxOutputTokens: 1024 },
           })
         });
-        log('aiResponseStatus', { status: respAi.status });
+        log('aiResponseStatus', { status: respAi.status, endpoint: endpointUsed, model: modelToUse });
+        if (respAi.status === 404) {
+          endpointUsed = 'v1';
+          respAi = await fetch(`https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(modelToUse)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [{ text: prompt }]}],
+              generationConfig: { temperature: geminiTemperature, maxOutputTokens: 1024 },
+            })
+          });
+          log('aiResponseStatusRetry', { status: respAi.status, endpoint: endpointUsed, model: modelToUse });
+        }
         if (respAi.ok) {
           const out = await respAi.json();
           const text = String(out?.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
@@ -353,8 +370,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           log('parsed', { hasText: Boolean(text), textHead: text.slice(0, 200), keys: Object.keys(parsed || {}) });
           const rt = ensureTitleChanged(productName, rtRaw || composeTitle(productName, featuresPreview, language), language, featuresPreview);
           const rd = improveDescription(rt, rdRaw || productDescription, language);
-          const debugOut = debugEnabled ? { reqId, language, featuresPreview, effectiveTitlePrompt: effTitle, effectiveDescPrompt: effDesc, promptHead: prompt.slice(0, 500), aiStatus: respAi.status, parsedKeys: Object.keys(parsed || {}) } : undefined;
-          return res.status(200).json({ rewrittenTitle: rt, rewrittenDescription: rd, aiUsed: true, source: 'gemini', model: geminiModel, temperature: geminiTemperature, debug: debugOut });
+          const debugOut = debugEnabled ? { reqId, language, featuresPreview, effectiveTitlePrompt: effTitle, effectiveDescPrompt: effDesc, promptHead: prompt.slice(0, 500), aiStatus: respAi.status, endpointUsed, model: modelToUse, parsedKeys: Object.keys(parsed || {}) } : undefined;
+          return res.status(200).json({ rewrittenTitle: rt, rewrittenDescription: rd, aiUsed: true, source: 'gemini', model: modelToUse, temperature: geminiTemperature, debug: debugOut });
         }
         debugReason = `aiHttp:${respAi.status}`;
       }
