@@ -313,9 +313,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const ctx = { name: productName, description: productDescription, lang: language, features: featuresPreview.join(' | ') };
         const effTitle = applyTemplate(effectiveTitlePrompt, ctx);
         const effDesc = applyTemplate(effectiveDescPrompt, ctx);
-        const customFr = `${effTitle ? `\nConsignes spécifiques pour le titre: ${effTitle}` : ''}${effDesc ? `\nConsignes spécifiques pour la description: ${effDesc}` : ''}`;
-        const customEn = `${effTitle ? `\nSpecific title instructions: ${effTitle}` : ''}${effDesc ? `\nSpecific description instructions: ${effDesc}` : ''}`;
-        const prompt = (language === 'fr' ? baseFr + customFr : baseEn + customEn) + `\nDonnées: Nom=${productName} Description=${productDescription}`;
+        const customFr = `${effTitle ? `\nConsignes spécifiques pour le titre: ${effTitle}` : ''}${effDesc ? `\nConsignes spécifiques pour la description: ${effDesc}` : ''}\nLangue de sortie: fr. Évite l'anglais sauf noms propres.`;
+        const customEn = `${effTitle ? `\nSpecific title instructions: ${effTitle}` : ''}${effDesc ? `\nSpecific description instructions: ${effDesc}` : ''}\nOutput language: en.`;
+        const prompt = (language === 'fr' ? baseFr + customFr : baseEn + customEn) + `\nData: name=${productName} description=${productDescription}`;
         const respAi = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -332,7 +332,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const rdRaw = pickString(parsed, ['rewrittenDescription','description','content']);
           const rt = ensureTitleChanged(productName, rtRaw || composeTitle(productName, featuresPreview, language), language, featuresPreview);
           const rd = improveDescription(rt, rdRaw || productDescription, language);
-          return res.status(200).json({ rewrittenTitle: rt, rewrittenDescription: rd });
+          return res.status(200).json({ rewrittenTitle: rt, rewrittenDescription: rd, aiUsed: true, source: 'gemini', model: geminiModel, temperature: geminiTemperature });
         }
       }
     } catch (_) { void 0; }
@@ -340,7 +340,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const feats = extractFeatureCandidates(productDescription).slice(0, 7);
     const rewrittenTitle = ensureTitleChanged(productName, composeTitle(productName, feats, language) || capitalizeWords(productName), language, feats);
     const rewrittenDescription = improveDescription(rewrittenTitle, productDescription, language);
-    return res.status(200).json({ rewrittenTitle, rewrittenDescription });
+    return res.status(200).json({ rewrittenTitle, rewrittenDescription, aiUsed: false, source: 'heuristic' });
   } catch (e) {
     const msg = typeof e?.message === "string" ? e.message : "Erreur inconnue";
     return res.status(400).json({ error: msg });
