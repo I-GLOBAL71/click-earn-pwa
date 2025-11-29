@@ -124,23 +124,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const roleRows = await sql<{ user_id: string }[]>`select user_id from user_roles where role = 'ambassador'`;
         const userIds = roleRows.map((r) => r.user_id);
         if (userIds.length === 0) return res.status(200).json([]);
+        await sql`create table if not exists profiles (id text primary key, full_name text, phone text, created_at timestamp with time zone default now())`;
         const profiles = await sql<{ id: string; full_name: string | null; phone: string | null; created_at: string | null }[]>`select id, full_name, phone, created_at from profiles where id in (${userIds})`;
+        const profileMap = new Map<string, { id: string; full_name: string | null; phone: string | null; created_at: string | null }>(profiles.map(p => [p.id, p]));
         const commissions = await sql<{ user_id: string; amount: number }[]>`select user_id, amount from commissions where user_id in (${userIds})`;
         const links = await sql<{ user_id: string; clicks: number | null }[]>`select user_id, clicks from referral_links where user_id in (${userIds})`;
         const authUsers = await admin.auth().getUsers(userIds.map((uid) => ({ uid })));
         const emailMap = new Map<string, string>();
         for (const u of authUsers.users) emailMap.set(u.uid, String(u.email || ""));
-        const result = profiles.map((p) => {
-          const userCommissions = commissions.filter((c) => c.user_id === p.id);
+        const result = userIds.map((uid) => {
+          const p = profileMap.get(uid);
+          const userCommissions = commissions.filter((c) => c.user_id === uid);
           const totalCommissions = userCommissions.reduce((sum, c) => sum + Number(c.amount || 0), 0);
-          const userLinks = links.filter((l) => l.user_id === p.id);
+          const userLinks = links.filter((l) => l.user_id === uid);
           const totalClicks = userLinks.reduce((sum, l) => sum + Number(l.clicks || 0), 0);
           return {
-            id: p.id,
-            full_name: p.full_name,
-            email: emailMap.get(p.id) || "",
-            phone: p.phone,
-            created_at: p.created_at || new Date().toISOString(),
+            id: uid,
+            full_name: p?.full_name || null,
+            email: emailMap.get(uid) || "",
+            phone: p?.phone || null,
+            created_at: p?.created_at || new Date().toISOString(),
             total_commissions: totalCommissions,
             total_clicks: totalClicks,
           };
@@ -280,6 +283,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (path === "orders") {
       await ensureAdmin(req);
       if (method === "GET") {
+        await sql`create table if not exists orders (
+          id uuid primary key default gen_random_uuid(),
+          product_id uuid references products(id) on delete set null,
+          quantity integer not null default 1,
+          total_amount numeric(10,2) not null default 0,
+          discount_amount numeric(10,2) not null default 0,
+          status text not null default 'pending',
+          created_at timestamp with time zone default now()
+        )`;
         const rows = await sql<{ id: string; product_id: string; product_name: string | null; quantity: number; total_amount: number; discount_amount: number; status: string; created_at: string }[]>`select o.id, o.product_id, p.name as product_name, o.quantity, o.total_amount, o.discount_amount, o.status, o.created_at from orders o left join products p on p.id = o.product_id order by o.created_at desc limit 500`;
         return res.status(200).json(rows);
       }
