@@ -73,6 +73,27 @@ CREATE INDEX IF NOT EXISTS idx_click_tracking_created_at ON public.click_trackin
 CREATE INDEX IF NOT EXISTS idx_commissions_user_id ON public.commissions(user_id);
 CREATE INDEX IF NOT EXISTS idx_commissions_status ON public.commissions(status);
 
+CREATE TABLE IF NOT EXISTS public.user_roles (
+  user_id TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('admin','ambassador','user')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  PRIMARY KEY (user_id, role)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_roles_role ON public.user_roles(role);
+
+CREATE TABLE IF NOT EXISTS public.orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  total_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+  discount_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders(created_at);
+
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS TRIGGER
 LANGUAGE plpgsql
