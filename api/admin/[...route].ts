@@ -115,6 +115,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(405).json({ error: "Méthode non autorisée" });
     }
 
+    if (path === "ambassadors") {
+      await ensureAdmin(req);
+      if (method === "GET") {
+        const roleRows = await sql<{ user_id: string }[]>`select user_id from user_roles where role = 'ambassador'`;
+        const userIds = roleRows.map((r) => r.user_id);
+        if (userIds.length === 0) return res.status(200).json([]);
+        const profiles = await sql<{ id: string; full_name: string | null; phone: string | null; created_at: string | null }[]>`select id, full_name, phone, created_at from profiles where id in (${userIds})`;
+        const commissions = await sql<{ user_id: string; amount: number }[]>`select user_id, amount from commissions where user_id in (${userIds})`;
+        const links = await sql<{ user_id: string; clicks: number | null }[]>`select user_id, clicks from referral_links where user_id in (${userIds})`;
+        const authUsers = await admin.auth().getUsers(userIds.map((uid) => ({ uid })));
+        const emailMap = new Map<string, string>();
+        for (const u of authUsers.users) emailMap.set(u.uid, String(u.email || ""));
+        const result = profiles.map((p) => {
+          const userCommissions = commissions.filter((c) => c.user_id === p.id);
+          const totalCommissions = userCommissions.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+          const userLinks = links.filter((l) => l.user_id === p.id);
+          const totalClicks = userLinks.reduce((sum, l) => sum + Number(l.clicks || 0), 0);
+          return {
+            id: p.id,
+            full_name: p.full_name,
+            email: emailMap.get(p.id) || "",
+            phone: p.phone,
+            created_at: p.created_at || new Date().toISOString(),
+            total_commissions: totalCommissions,
+            total_clicks: totalClicks,
+          };
+        });
+        return res.status(200).json(result);
+      }
+      return res.status(405).json({ error: "Méthode non autorisée" });
+    }
+
     if (path === "category-commissions") {
       await ensureAdmin(req);
       await sql`create table if not exists category_commissions (
