@@ -282,6 +282,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const debugEnabled = debugReq || debugEnv;
     const reqId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     const log = (...args: any[]) => { if (debugEnabled) console.log(`[rewrite-product:${reqId}]`, ...args); };
+    let debugReason = "";
     if (!productName || !productDescription) return res.status(400).json({ error: "Données manquantes" });
 
     const featuresPreview = extractFeatureCandidates(productDescription).slice(0, 7);
@@ -310,6 +311,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         defaultTitlePrompt = String(m.get('default_title_prompt') || "");
         defaultDescriptionPrompt = String(m.get('default_description_prompt') || "");
         log('settings', { geminiEnabled, geminiModel, geminiTemperature, hasApiKey: Boolean(apiKey), hasTitleSeed: Boolean(defaultTitlePrompt), hasDescSeed: Boolean(defaultDescriptionPrompt) });
+        if (!geminiEnabled) debugReason = 'geminiDisabled';
+        else if (!apiKey) debugReason = 'missingApiKey';
       }
 
       if (geminiEnabled && apiKey) {
@@ -345,13 +348,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const debugOut = debugEnabled ? { reqId, language, featuresPreview, effectiveTitlePrompt: effTitle, effectiveDescPrompt: effDesc, promptHead: prompt.slice(0, 500), aiStatus: respAi.status, parsedKeys: Object.keys(parsed || {}) } : undefined;
           return res.status(200).json({ rewrittenTitle: rt, rewrittenDescription: rd, aiUsed: true, source: 'gemini', model: geminiModel, temperature: geminiTemperature, debug: debugOut });
         }
+        debugReason = `aiHttp:${respAi.status}`;
       }
     } catch (_) { void 0; }
 
     const feats = extractFeatureCandidates(productDescription).slice(0, 7);
     const rewrittenTitle = ensureTitleChanged(productName, composeTitle(productName, feats, language) || capitalizeWords(productName), language, feats);
     const rewrittenDescription = improveDescription(rewrittenTitle, productDescription, language);
-    const debugOut = debugEnabled ? { reqId, language, featuresPreview: feats } : undefined;
+    const debugOut = debugEnabled ? { reqId, language, featuresPreview: feats, reason: debugReason || 'fallback' } : undefined;
     return res.status(200).json({ rewrittenTitle, rewrittenDescription, aiUsed: false, source: 'heuristic', debug: debugOut });
   } catch (e) {
     const msg = typeof e?.message === "string" ? e.message : "Erreur inconnue";

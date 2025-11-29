@@ -130,7 +130,8 @@ export const AdminProductImport = () => {
       const data = await resp.json();
       setFormData({ ...formData, name: data.rewrittenTitle });
       const via = data.aiUsed ? "IA (Gemini)" : "mécanisme de secours";
-      toast({ title: "Réécriture réussie", description: `Nom amélioré via ${via}` });
+      const reason = data?.debug?.reason ? ` (${data.debug.reason})` : "";
+      toast({ title: "Réécriture réussie", description: `Nom amélioré via ${via}${reason}` });
     } catch (error: unknown) {
       toast({ title: "Erreur de réécriture", description: (error instanceof Error ? error.message : String(error)) || "Impossible de réécrire le nom", variant: "destructive" });
     } finally {
@@ -162,7 +163,8 @@ export const AdminProductImport = () => {
       const data = await resp.json();
       setFormData({ ...formData, description: data.rewrittenDescription });
       const via = data.aiUsed ? "IA (Gemini)" : "mécanisme de secours";
-      toast({ title: "Réécriture réussie", description: `Description améliorée via ${via}` });
+      const reason = data?.debug?.reason ? ` (${data.debug.reason})` : "";
+      toast({ title: "Réécriture réussie", description: `Description améliorée via ${via}${reason}` });
     } catch (error: unknown) {
       toast({ title: "Erreur de réécriture", description: (error instanceof Error ? error.message : String(error)) || "Impossible de réécrire la description", variant: "destructive" });
     } finally {
