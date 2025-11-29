@@ -291,10 +291,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const dbUrl = process.env.NEON_DATABASE_URL || "";
       const sql = dbUrl ? neon(dbUrl) : null;
+      let aiProvider = "gemini";
       let geminiEnabled = false;
       let geminiModel = "gemini-1.5-flash";
       let geminiTemperature = 0.5;
       let apiKey = process.env.GEMINI_API_KEY || "";
+      let deepseekApiKey = process.env.DEEPSEEK_API_KEY || "";
       let defaultTitlePrompt = "";
       let defaultDescriptionPrompt = "";
       const seedTitleFr = "À partir de {name} et des signaux {features}, rédiger un titre ultra-accrocheur en ≤12 mots, bénéfice clair, verbe d'action, ton premium accessible, sans jargon ni marque; mettre la promesse et la différenciation.";
@@ -302,20 +304,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const seedDescFr = "À partir de {name} et {description}, écrire une description persuasive et claire en {lang}: 1) Accroche 1 phrase; 2) 5–7 puces (•) de bénéfices concrets centrés utilisateur, inspirées de {features} quand pertinent, phrases courtes, sans jargon; 3) Section 'Spécifications essentielles' 3–5 puces factuelles; 4) Ton premium accessible; 5) Éviter toute mention de la source ou termes techniques inutiles.";
       const seedDescEn = "Based on {name} and {description}, write a persuasive, clear description in {lang}: 1) One-sentence hook; 2) 5–7 bullets (•) of concrete user benefits, inspired by {features} when relevant, short sentences, no jargon; 3) 'Essential specs' section with 3–5 factual bullets; 4) Premium yet accessible tone; 5) Avoid source mentions or unnecessary technical terms.";
       if (sql) {
-        const s = await sql<{ key: string; value: string }[]>`select key, value from system_settings where key in ('gemini_enabled','gemini_model','gemini_temperature','gemini_api_key','default_title_prompt','default_description_prompt')`;
+        const s = await sql<{ key: string; value: string }[]>`select key, value from system_settings where key in ('ai_provider','gemini_enabled','gemini_model','gemini_temperature','gemini_api_key','deepseek_api_key','default_title_prompt','default_description_prompt')`;
         const m = new Map(s.map((r) => [r.key, r.value]));
+        aiProvider = String(m.get('ai_provider') || aiProvider);
         geminiEnabled = String(m.get('gemini_enabled') || "false").toLowerCase() === 'true';
         geminiModel = String(m.get('gemini_model') || geminiModel);
         geminiTemperature = Number(m.get('gemini_temperature') || geminiTemperature);
         apiKey = String(m.get('gemini_api_key') || apiKey);
+        deepseekApiKey = String(m.get('deepseek_api_key') || deepseekApiKey);
         defaultTitlePrompt = String(m.get('default_title_prompt') || "");
         defaultDescriptionPrompt = String(m.get('default_description_prompt') || "");
-        log('settings', { geminiEnabled, geminiModel, geminiTemperature, hasApiKey: Boolean(apiKey), hasTitleSeed: Boolean(defaultTitlePrompt), hasDescSeed: Boolean(defaultDescriptionPrompt) });
-        if (!geminiEnabled) debugReason = 'geminiDisabled';
-        else if (!apiKey) debugReason = 'missingApiKey';
+        log('settings', { aiProvider, geminiEnabled, geminiModel, geminiTemperature, hasApiKey: Boolean(apiKey), hasDeepseekKey: Boolean(deepseekApiKey), hasTitleSeed: Boolean(defaultTitlePrompt), hasDescSeed: Boolean(defaultDescriptionPrompt) });
+        if (aiProvider === 'gemini') {
+          if (!geminiEnabled) debugReason = 'geminiDisabled';
+          else if (!apiKey) debugReason = 'missingGeminiKey';
+        } else if (aiProvider === 'deepseek') {
+          if (!deepseekApiKey) debugReason = 'missingDeepseekKey';
+        }
       }
 
-      if (geminiEnabled && apiKey) {
+      if (aiProvider === 'gemini' && geminiEnabled && apiKey) {
         const baseFr = `Tu es un copywriter e-commerce. Objectif: produire un titre très accrocheur et une description structurée qui convainc les sceptiques. Retourne uniquement un JSON strict {"rewrittenTitle":"...","rewrittenDescription":"..."}. Exigences: 1) Le titre doit contenir une promesse forte ou bénéfice en très peu de mots. 2) La description commence par une section "Points forts" avec 5 à 7 puces (caractère •). 3) Ajoute ensuite une courte "Accroche" (1 phrase) et une section "Spécifications essentielles" avec 3 à 5 puces. 4) Évite toute mention technique inutile, écris naturel et orienté bénéfices.`;
         const baseEn = `You are an e-commerce copywriter. Goal: produce a highly catchy title and a structured description that converts skeptics. Return strict JSON only {"rewrittenTitle":"...","rewrittenDescription":"..."}. Requirements: 1) Title contains a strong promise or benefit in few words. 2) Description starts with a "Key strengths" section with 5–7 bullets (•). 3) Then add a short "Hook" (1 sentence) and an "Essential specs" section with 3–5 bullets. 4) Avoid unnecessary technical terms, write naturally and benefit-driven.`;
         const effectiveTitlePrompt = (titlePrompt || defaultTitlePrompt || (language === 'fr' ? seedTitleFr : seedTitleEn));
@@ -349,6 +357,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(200).json({ rewrittenTitle: rt, rewrittenDescription: rd, aiUsed: true, source: 'gemini', model: geminiModel, temperature: geminiTemperature, debug: debugOut });
         }
         debugReason = `aiHttp:${respAi.status}`;
+      }
+
+      if (aiProvider === 'deepseek' && deepseekApiKey) {
+        const effTitle = applyTemplate(effectiveTitlePrompt, { name: productName, description: productDescription, lang: language, features: featuresPreview.join(' | ') });
+        const effDesc = applyTemplate(effectiveDescPrompt, { name: productName, description: productDescription, lang: language, features: featuresPreview.join(' | ') });
+        const systemPrompt = language === 'fr' ? 'Tu es un copywriter e-commerce. Réponds STRICTEMENT en JSON.' : 'You are an e-commerce copywriter. Respond STRICTLY in JSON.';
+        const userPrompt = (language === 'fr' ? baseFr : baseEn) + `\n${language === 'fr' ? 'Consignes spécifiques pour le titre: ' : 'Specific title instructions: '}${effTitle}\n${language === 'fr' ? 'Consignes spécifiques pour la description: ' : 'Specific description instructions: '}${effDesc}\nData: name=${productName} description=${productDescription}`;
+        log('promptDeepseek', { length: userPrompt.length, head: userPrompt.slice(0, 300) });
+        const resp = await fetch('https://api.deepseek.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${deepseekApiKey}` },
+          body: JSON.stringify({
+            model: 'deepseek-chat',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
+            ],
+            temperature: geminiTemperature,
+            max_tokens: 1024
+          })
+        });
+        log('deepseekStatus', { status: resp.status });
+        if (resp.ok) {
+          const out = await resp.json();
+          const text = String(out?.choices?.[0]?.message?.content || '').trim();
+          const parsed = safeJson(text) || {};
+          const rtRaw = pickString(parsed, ['rewrittenTitle','title','name']);
+          const rdRaw = pickString(parsed, ['rewrittenDescription','description','content']);
+          const rt = ensureTitleChanged(productName, rtRaw || composeTitle(productName, featuresPreview, language), language, featuresPreview);
+          const rd = improveDescription(rt, rdRaw || productDescription, language);
+          const debugOut = debugEnabled ? { reqId, language, featuresPreview, promptHead: userPrompt.slice(0, 500), aiStatus: resp.status, parsedKeys: Object.keys(parsed || {}) } : undefined;
+          return res.status(200).json({ rewrittenTitle: rt, rewrittenDescription: rd, aiUsed: true, source: 'deepseek', model: 'deepseek-chat', temperature: geminiTemperature, debug: debugOut });
+        }
+        debugReason = `deepseekHttp:${resp.status}`;
       }
     } catch (_) { void 0; }
 

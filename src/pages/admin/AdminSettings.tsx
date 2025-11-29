@@ -59,6 +59,9 @@ export const AdminSettings = () => {
   const [geminiTemperature, setGeminiTemperature] = useState("0.2");
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [geminiMasked, setGeminiMasked] = useState("");
+  const [aiProvider, setAiProvider] = useState("gemini");
+  const [deepseekApiKey, setDeepseekApiKey] = useState("");
+  const [deepseekMasked, setDeepseekMasked] = useState("");
   const [defaultTitlePrompt, setDefaultTitlePrompt] = useState("");
   const [defaultDescriptionPrompt, setDefaultDescriptionPrompt] = useState("");
 
@@ -85,6 +88,8 @@ export const AdminSettings = () => {
       setGeminiModel(aiSettings.gemini_model || "gemini-1.5-flash");
       setGeminiTemperature(aiSettings.gemini_temperature || "0.2");
       setGeminiMasked(aiSettings.gemini_api_key_masked || "");
+      setAiProvider(aiSettings.ai_provider || "gemini");
+      setDeepseekMasked(aiSettings.deepseek_api_key_masked || "");
       const seedTitle = "À partir de {name} et des signaux {features}, rédiger un titre ultra-accrocheur en ≤12 mots, bénéfice clair, verbe d'action, ton premium accessible, sans jargon ni marque; mettre la promesse et la différenciation.";
       const seedDesc = "À partir de {name} et {description}, écrire une description persuasive et claire en {lang}: 1) Accroche unique en 1 phrase; 2) 5–7 puces (•) de bénéfices concrets centrés utilisateur, inspirées de {features} quand pertinent, phrases courtes, sans jargon; 3) Section 'Spécifications essentielles' en 3–5 puces factuelles; 4) Ton premium accessible, inclusif; 5) Éviter toute mention de la source ou termes techniques inutiles.";
       const dpTitle = String(aiSettings.default_title_prompt || "").trim();
@@ -105,8 +110,10 @@ export const AdminSettings = () => {
         gemini_temperature: geminiTemperature,
         default_title_prompt: defaultTitlePrompt,
         default_description_prompt: defaultDescriptionPrompt,
+        ai_provider: aiProvider,
       };
       if (geminiApiKey.trim()) payload.gemini_api_key = geminiApiKey.trim();
+      if (deepseekApiKey.trim()) payload.deepseek_api_key = deepseekApiKey.trim();
       const urlPrimary = `${apiBase}/api/admin/system-settings`;
       const urlFallback = `${apiBase}/api/ai-settings`;
       const reqInit = { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' }, body: JSON.stringify(payload) };
@@ -222,64 +229,81 @@ export const AdminSettings = () => {
         <CardHeader>
           <CardTitle>Configuration IA (Gemini)</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center gap-3">
-              <Switch checked={geminiEnabled} onCheckedChange={(v) => setGeminiEnabled(v)} />
-              <div>
-                <p className="font-medium">Activer Gemini</p>
-                <p className="text-sm text-muted-foreground">Utiliser Gemini pour extraction et réécriture</p>
-              </div>
-            </div>
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <Label>Fournisseur IA</Label>
+            <Select value={aiProvider} onValueChange={setAiProvider}>
+              <SelectTrigger className="mt-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gemini">Gemini</SelectItem>
+                <SelectItem value="deepseek">DeepSeek</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-3">
+            <Switch checked={geminiEnabled} onCheckedChange={(v) => setGeminiEnabled(v)} />
             <div>
-              <Label>Modèle</Label>
-              <Select value={geminiModel} onValueChange={setGeminiModel}>
-                <SelectTrigger className="mt-2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="gemini-1.5-flash">gemini-1.5-flash (gratuit)</SelectItem>
-                  <SelectItem value="gemini-1.5-pro">gemini-1.5-pro</SelectItem>
-                  <SelectItem value="gemini-1.0-pro">gemini-1.0-pro</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Température</Label>
-              <Input value={geminiTemperature} onChange={(e) => setGeminiTemperature(e.target.value)} placeholder="0.2" />
+              <p className="font-medium">Activer Gemini</p>
+              <p className="text-sm text-muted-foreground">Utiliser Gemini pour extraction et réécriture</p>
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>Prompt par défaut pour le titre</Label>
-              <Textarea
-                value={defaultTitlePrompt}
-                onChange={(e) => setDefaultTitlePrompt(e.target.value)}
-                rows={3}
-                placeholder="Ex: Mettre en avant la promesse principale, max 10 mots."
-                className="mt-2"
-              />
-              <p className="text-xs text-muted-foreground mt-1">Variables disponibles: {"{name}"}, {"{description}"}, {"{lang}"}, {"{features}"}</p>
-            </div>
-            <div>
-              <Label>Prompt par défaut pour la description</Label>
-              <Textarea
-                value={defaultDescriptionPrompt}
-                onChange={(e) => setDefaultDescriptionPrompt(e.target.value)}
-                rows={4}
-                placeholder="Ex: Accroche + 5–7 puces orientées bénéfices (•), éviter jargon."
-                className="mt-2"
-              />
-              <p className="text-xs text-muted-foreground mt-1">Variables disponibles: {"{name}"}, {"{description}"}, {"{lang}"}, {"{features}"}</p>
-            </div>
+          <div>
+            <Label>Modèle</Label>
+            <Select value={geminiModel} onValueChange={setGeminiModel}>
+              <SelectTrigger className="mt-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gemini-1.5-flash">gemini-1.5-flash (gratuit)</SelectItem>
+                <SelectItem value="gemini-1.5-pro">gemini-1.5-pro</SelectItem>
+                <SelectItem value="gemini-1.0-pro">gemini-1.0-pro</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>Clé API Gemini</Label>
-              <Input type="password" value={geminiApiKey} onChange={(e) => setGeminiApiKey(e.target.value)} placeholder={geminiMasked ? `**** ${geminiMasked}` : "sk-..."} />
-              <p className="text-xs text-muted-foreground mt-1">Saisir pour mettre à jour. La valeur actuelle n'est pas affichée.</p>
-            </div>
+          <div>
+            <Label>Température</Label>
+            <Input value={geminiTemperature} onChange={(e) => setGeminiTemperature(e.target.value)} placeholder="0.2" />
           </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label>Prompt par défaut pour le titre</Label>
+            <Textarea
+              value={defaultTitlePrompt}
+              onChange={(e) => setDefaultTitlePrompt(e.target.value)}
+              rows={3}
+              placeholder="Ex: Mettre en avant la promesse principale, max 10 mots."
+              className="mt-2"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Variables disponibles: {"{name}"}, {"{description}"}, {"{lang}"}, {"{features}"}</p>
+          </div>
+          <div>
+            <Label>Prompt par défaut pour la description</Label>
+            <Textarea
+              value={defaultDescriptionPrompt}
+              onChange={(e) => setDefaultDescriptionPrompt(e.target.value)}
+              rows={4}
+              placeholder="Ex: Accroche + 5–7 puces orientées bénéfices (•), éviter jargon."
+              className="mt-2"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Variables disponibles: {"{name}"}, {"{description}"}, {"{lang}"}, {"{features}"}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label>Clé API Gemini</Label>
+            <Input type="password" value={geminiApiKey} onChange={(e) => setGeminiApiKey(e.target.value)} placeholder={geminiMasked ? `**** ${geminiMasked}` : "sk-..."} />
+            <p className="text-xs text-muted-foreground mt-1">Saisir pour mettre à jour. La valeur actuelle n'est pas affichée.</p>
+          </div>
+          <div>
+            <Label>Clé API DeepSeek</Label>
+            <Input type="password" value={deepseekApiKey} onChange={(e) => setDeepseekApiKey(e.target.value)} placeholder={deepseekMasked ? `**** ${deepseekMasked}` : "sk-..."} />
+            <p className="text-xs text-muted-foreground mt-1">Saisir pour mettre à jour. La valeur actuelle n'est pas affichée.</p>
+          </div>
+        </div>
           <div className="flex gap-2">
             <Button onClick={() => saveAiMutation.mutate()} disabled={saveAiMutation.isPending || aiLoading}>
               {saveAiMutation.isPending ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enregistrement...</>) : ("Enregistrer")}
