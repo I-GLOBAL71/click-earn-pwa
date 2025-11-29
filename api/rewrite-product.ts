@@ -277,9 +277,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const language = String(body?.language || "fr").trim().toLowerCase();
     const titlePrompt = String(body?.titlePrompt || "").trim();
     const descriptionPrompt = String(body?.descriptionPrompt || "").trim();
+    const debugReq = Boolean(body?.debug);
+    const debugEnv = String(process.env.REWRITE_DEBUG || "").toLowerCase() === 'true';
+    const debugEnabled = debugReq || debugEnv;
+    const reqId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const log = (...args: any[]) => { if (debugEnabled) console.log(`[rewrite-product:${reqId}]`, ...args); };
     if (!productName || !productDescription) return res.status(400).json({ error: "Données manquantes" });
 
     const featuresPreview = extractFeatureCandidates(productDescription).slice(0, 7);
+    log('input', { language, nameLen: productName.length, descLen: productDescription.length, featuresPreview });
 
     try {
       const dbUrl = process.env.NEON_DATABASE_URL || "";
@@ -303,6 +309,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         apiKey = String(m.get('gemini_api_key') || apiKey);
         defaultTitlePrompt = String(m.get('default_title_prompt') || "");
         defaultDescriptionPrompt = String(m.get('default_description_prompt') || "");
+        log('settings', { geminiEnabled, geminiModel, geminiTemperature, hasApiKey: Boolean(apiKey), hasTitleSeed: Boolean(defaultTitlePrompt), hasDescSeed: Boolean(defaultDescriptionPrompt) });
       }
 
       if (geminiEnabled && apiKey) {
@@ -316,6 +323,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const customFr = `${effTitle ? `\nConsignes spécifiques pour le titre: ${effTitle}` : ''}${effDesc ? `\nConsignes spécifiques pour la description: ${effDesc}` : ''}\nLangue de sortie: fr. Évite l'anglais sauf noms propres.`;
         const customEn = `${effTitle ? `\nSpecific title instructions: ${effTitle}` : ''}${effDesc ? `\nSpecific description instructions: ${effDesc}` : ''}\nOutput language: en.`;
         const prompt = (language === 'fr' ? baseFr + customFr : baseEn + customEn) + `\nData: name=${productName} description=${productDescription}`;
+        log('prompt', { length: prompt.length, head: prompt.slice(0, 300) });
         const respAi = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -324,15 +332,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             generationConfig: { temperature: geminiTemperature, maxOutputTokens: 1024 },
           })
         });
+        log('aiResponseStatus', { status: respAi.status });
         if (respAi.ok) {
           const out = await respAi.json();
           const text = String(out?.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
           const parsed = safeJson(text) || {};
           const rtRaw = pickString(parsed, ['rewrittenTitle','title','name']);
           const rdRaw = pickString(parsed, ['rewrittenDescription','description','content']);
+          log('parsed', { hasText: Boolean(text), textHead: text.slice(0, 200), keys: Object.keys(parsed || {}) });
           const rt = ensureTitleChanged(productName, rtRaw || composeTitle(productName, featuresPreview, language), language, featuresPreview);
           const rd = improveDescription(rt, rdRaw || productDescription, language);
-          return res.status(200).json({ rewrittenTitle: rt, rewrittenDescription: rd, aiUsed: true, source: 'gemini', model: geminiModel, temperature: geminiTemperature });
+          const debugOut = debugEnabled ? { reqId, language, featuresPreview, effectiveTitlePrompt: effTitle, effectiveDescPrompt: effDesc, promptHead: prompt.slice(0, 500), aiStatus: respAi.status, parsedKeys: Object.keys(parsed || {}) } : undefined;
+          return res.status(200).json({ rewrittenTitle: rt, rewrittenDescription: rd, aiUsed: true, source: 'gemini', model: geminiModel, temperature: geminiTemperature, debug: debugOut });
         }
       }
     } catch (_) { void 0; }
@@ -340,9 +351,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const feats = extractFeatureCandidates(productDescription).slice(0, 7);
     const rewrittenTitle = ensureTitleChanged(productName, composeTitle(productName, feats, language) || capitalizeWords(productName), language, feats);
     const rewrittenDescription = improveDescription(rewrittenTitle, productDescription, language);
-    return res.status(200).json({ rewrittenTitle, rewrittenDescription, aiUsed: false, source: 'heuristic' });
+    const debugOut = debugEnabled ? { reqId, language, featuresPreview: feats } : undefined;
+    return res.status(200).json({ rewrittenTitle, rewrittenDescription, aiUsed: false, source: 'heuristic', debug: debugOut });
   } catch (e) {
     const msg = typeof e?.message === "string" ? e.message : "Erreur inconnue";
+    console.error(`[rewrite-product:${Date.now().toString(36)}]`, 'error', msg);
     return res.status(400).json({ error: msg });
   }
 }
